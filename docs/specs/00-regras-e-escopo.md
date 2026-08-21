@@ -1,5 +1,7 @@
 # Spec 00 — Regras e escopo do MVP
 
+**Status:** concluída.
+
 ## Objetivo
 
 Fixar as decisões que todas as demais specs devem respeitar.

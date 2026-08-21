@@ -309,7 +309,7 @@ Estados mínimos:
 
 ### Concluído
 
-Os registros processados são compatíveis com a aplicação esperada.
+Há registro completo de aplicação: um evento `Ligar` programado seguido por um evento `Desligar` programado para o mesmo gerador, em ordem cronológica.
 
 ### Verificação necessária
 

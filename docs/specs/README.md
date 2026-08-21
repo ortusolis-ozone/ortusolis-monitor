@@ -15,18 +15,18 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 
 ## Ordem de execução
 
-| Ordem | Especificação | Resultado esperado |
-| --- | --- | --- |
-| 0 | [Regras e escopo](./00-regras-e-escopo.md) | Vocabulário e regras de negócio congelados |
-| 1 | [Arquitetura base](./01-arquitetura-base.md) | Fundação técnica e limites entre as camadas |
-| 2 | [Modelo de dados](./02-modelo-de-dados.md) | Schema, relacionamentos e histórico operacional |
-| 3 | [Autenticação e autorização](./03-autenticacao-e-autorizacao.md) | Login, perfis, isolamento e políticas RLS |
-| 4 | [Cadastros operacionais](./04-cadastros-operacionais.md) | Estrutura Cliente → Controlador utilizável |
-| 5 | [Importação XLSX](./05-importacao-xlsx.md) | Validação, prévia e confirmação idempotente |
-| 6 | [Processamento e estados](./06-processamento-e-estados.md) | Aplicações, inconsistências e visão sanitizada |
-| 7 | [Painel administrativo](./07-painel-administrativo.md) | Operação completa pela Ortusolis |
-| 8 | [Portal do cliente](./08-portal-do-cliente.md) | Consulta segura e responsiva dos estados públicos |
-| 9 | [Qualidade e entrega](./09-qualidade-e-entrega.md) | Testes, segurança e critérios para publicação |
+| Ordem | Especificação | Resultado esperado | Status |
+| --- | --- | --- | --- |
+| 0 | [Regras e escopo](./00-regras-e-escopo.md) | Vocabulário e regras de negócio congelados | Concluída |
+| 1 | [Arquitetura base](./01-arquitetura-base.md) | Fundação técnica e limites entre as camadas | Pendente |
+| 2 | [Modelo de dados](./02-modelo-de-dados.md) | Schema, relacionamentos e histórico operacional | Pendente |
+| 3 | [Autenticação e autorização](./03-autenticacao-e-autorizacao.md) | Login, perfis, isolamento e políticas RLS | Pendente |
+| 4 | [Cadastros operacionais](./04-cadastros-operacionais.md) | Estrutura Cliente → Controlador utilizável | Pendente |
+| 5 | [Importação XLSX](./05-importacao-xlsx.md) | Validação, prévia e confirmação idempotente | Pendente |
+| 6 | [Processamento e estados](./06-processamento-e-estados.md) | Aplicações, inconsistências e visão sanitizada | Pendente |
+| 7 | [Painel administrativo](./07-painel-administrativo.md) | Operação completa pela Ortusolis | Pendente |
+| 8 | [Portal do cliente](./08-portal-do-cliente.md) | Consulta segura e responsiva dos estados públicos | Pendente |
+| 9 | [Qualidade e entrega](./09-qualidade-e-entrega.md) | Testes, segurança e critérios para publicação | Pendente |
 
 ## Marcos
 
