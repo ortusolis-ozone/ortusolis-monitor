@@ -1,5 +1,7 @@
 # Spec 02 — Modelo de dados
 
+**Status:** concluída.
+
 ## Objetivo
 
 Definir o schema mínimo para identidade, instalações, importação, processamento e publicação segura.
@@ -61,3 +63,15 @@ Definir o schema mínimo para identidade, instalações, importação, processam
 - Não é possível vincular registros entre clientes diferentes.
 - É possível reconstruir aplicações, inconsistências e estados usando somente dados persistidos.
 - A tabela sanitizada não permite deduzir horários ou duração.
+
+## Resultado da implementação
+
+- O schema foi versionado em uma única migração inicial do Supabase.
+- Chaves estrangeiras compostas impedem vínculos entre hierarquias de clientes diferentes.
+- Restrições de exclusão impedem períodos sobrepostos de alocação e de controladores.
+- Todas as tabelas públicas têm RLS habilitada; `anon` e `authenticated` permanecem sem acesso até a definição das políticas na spec 03.
+- A `service_role` possui permissões explícitas para as operações internas.
+- Os tipos TypeScript do schema foram gerados e aplicados aos clientes Supabase do navegador e do servidor.
+- O reset completo, o lint do schema e os testes transacionais locais foram executados com sucesso.
+
+A aplicação da migração em um ambiente hospedado fica pendente até o provisionamento de um projeto Supabase exclusivo para o Ortusolis Monitor.
