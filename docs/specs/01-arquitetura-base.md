@@ -1,5 +1,7 @@
 # Spec 01 — Arquitetura base
 
+**Status:** concluída.
+
 ## Objetivo
 
 Estabelecer uma fundação suficiente para o MVP, mantendo baixo custo operacional e poucas camadas.
@@ -31,6 +33,8 @@ lib/
   validation/
 ```
 
+Os diretórios serão criados quando receberem a primeira implementação real. A fundação inicial mantém apenas os grupos de rota e `lib/supabase`, evitando arquivos vazios ou abstrações antecipadas.
+
 - Rotas organizam experiências, não regras de negócio.
 - Consultas e mutações ficam em módulos executados no servidor.
 - Parsing e processamento devem ser funções determinísticas, independentes da interface.
@@ -57,5 +61,14 @@ Administrador → upload XLSX → validação → prévia → confirmação
 
 - Segredos administrativos nunca são enviados ao navegador.
 - Código de parsing e processamento pode ser testado sem renderizar páginas.
-- Rotas administrativas e do cliente possuem layouts e autorizações independentes.
+- Rotas administrativas e do cliente possuem limites de layout independentes, preparados para as autorizações da spec 03.
 - A arquitetura permite substituir o algoritmo de processamento sem migrar os eventos brutos.
+
+## Resultado da execução
+
+- Runtime mínimo declarado como Node.js 22.
+- Clientes Supabase de navegador e servidor isolados em módulos próprios.
+- Cliente de servidor preparado para sessões em cookies e protegido contra importação acidental no navegador.
+- Grupos de rota de autenticação, administração e cliente separados por layout.
+- Variáveis públicas e segredo administrativo documentados em `.env.example`.
+- Proxy de sessão, login e autorização mantidos na spec 03.

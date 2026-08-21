@@ -1,3 +1,3 @@
 export default function Home() {
-  return <p>Hello, world!</p>;
+  return <main>Ortusolis Monitor</main>;
 }

@@ -18,7 +18,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | Ordem | Especificação | Resultado esperado | Status |
 | --- | --- | --- | --- |
 | 0 | [Regras e escopo](./00-regras-e-escopo.md) | Vocabulário e regras de negócio congelados | Concluída |
-| 1 | [Arquitetura base](./01-arquitetura-base.md) | Fundação técnica e limites entre as camadas | Pendente |
+| 1 | [Arquitetura base](./01-arquitetura-base.md) | Fundação técnica e limites entre as camadas | Concluída |
 | 2 | [Modelo de dados](./02-modelo-de-dados.md) | Schema, relacionamentos e histórico operacional | Pendente |
 | 3 | [Autenticação e autorização](./03-autenticacao-e-autorizacao.md) | Login, perfis, isolamento e políticas RLS | Pendente |
 | 4 | [Cadastros operacionais](./04-cadastros-operacionais.md) | Estrutura Cliente → Controlador utilizável | Pendente |
