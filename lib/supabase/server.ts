@@ -21,8 +21,8 @@ export async function createClient() {
             cookieStore.set(name, value, options);
           });
         } catch {
-          // Server Components não podem gravar cookies. O proxy da spec 03
-          // será responsável por atualizar a sessão antes da renderização.
+          // Server Components não podem gravar cookies. O proxy atualiza a
+          // sessão antes da renderização; Actions e Route Handlers podem gravar.
         }
       },
     },

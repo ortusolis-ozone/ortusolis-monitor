@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f5f6f2;
+  --foreground: #172019;
+  --surface: #ffffff;
+  --border: #d9ded7;
+  --muted: #5d685f;
+  --primary: #245a3b;
+  --primary-hover: #19472d;
+  --danger: #9e2e2e;
+  --danger-background: #fff0f0;
+  --success: #23633b;
+  --success-background: #eef8f1;
 }
 
 @theme inline {
@@ -12,15 +21,214 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.auth-card,
+.content-card {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 1rem 3rem rgb(23 32 25 / 8%);
+}
+
+.auth-card {
+  max-width: 28rem;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+}
+
+.auth-heading,
+.content-card {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.auth-heading {
+  margin-bottom: 1.5rem;
+}
+
+.auth-heading h1,
+.content-card h1 {
+  font-size: clamp(1.65rem, 5vw, 2.25rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.auth-heading p:last-child,
+.content-card p:last-child {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.auth-form label {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.auth-form input {
+  min-height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: #fff;
+  padding: 0.65rem 0.75rem;
+  outline: none;
+}
+
+.auth-form input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(36 90 59 / 14%);
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  font-weight: 650;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.primary-button {
+  margin-top: 0.5rem;
+  background: var(--primary);
+  color: #fff;
+  padding: 0.7rem 1rem;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.secondary-button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.55rem 0.9rem;
+}
+
+.secondary-button:hover {
+  border-color: #a9b3aa;
+  background: #f8faf8;
+}
+
+.text-link {
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.auth-card > .text-link {
+  display: block;
+  margin-top: 1.25rem;
+}
+
+.form-message {
+  border: 1px solid currentColor;
+  border-radius: 0.55rem;
+  margin: 0.25rem 0;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.form-message.error {
+  background: var(--danger-background);
+  color: var(--danger);
+}
+
+.form-message.success {
+  background: var(--success-background);
+  color: var(--success);
+}
+
+.app-shell {
+  width: min(100% - 2rem, 72rem);
+  margin: 0 auto;
+  padding: 1rem 0 3rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0 2.5rem;
+}
+
+.app-area {
+  margin-top: 0.15rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.content-card {
+  max-width: 48rem;
+  padding: clamp(1.5rem, 5vw, 3rem);
+}
+
+@media (max-width: 38rem) {
+  .app-header,
+  .user-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-header {
+    padding-bottom: 1.5rem;
+  }
 }

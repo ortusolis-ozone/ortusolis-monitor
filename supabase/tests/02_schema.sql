@@ -276,9 +276,8 @@ begin
     raise exception 'há tabela pública sem RLS habilitada';
   end if;
 
-  if has_table_privilege('anon', 'public.clients', 'select')
-    or has_table_privilege('authenticated', 'public.clients', 'select') then
-    raise exception 'anon ou authenticated recebeu acesso antes da spec 03';
+  if has_table_privilege('anon', 'public.clients', 'select') then
+    raise exception 'anon recebeu acesso aos dados protegidos';
   end if;
 
   if not has_table_privilege('service_role', 'public.clients', 'select,insert,update,delete') then

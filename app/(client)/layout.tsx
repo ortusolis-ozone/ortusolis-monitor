@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 
-export default function ClientLayout({ children }: { children: ReactNode }) {
+import { requireClientProfile } from "@/lib/auth/profile";
+
+export default async function ClientLayout({ children }: { children: ReactNode }) {
+  await requireClientProfile();
+
   return <div data-layout="client">{children}</div>;
 }

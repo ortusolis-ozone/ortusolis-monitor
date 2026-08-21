@@ -1,0 +1,12 @@
+<html>
+  <body>
+    <h2>Redefina sua senha</h2>
+    <p>Recebemos uma solicitação para redefinir sua senha.</p>
+    <p>
+      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/update-password">
+        Criar nova senha
+      </a>
+    </p>
+    <p>Se você não fez esta solicitação, ignore este e-mail.</p>
+  </body>
+</html>
