@@ -74,4 +74,4 @@ Definir o schema mínimo para identidade, instalações, importação, processam
 - Os tipos TypeScript do schema foram gerados e aplicados aos clientes Supabase do navegador e do servidor.
 - O reset completo, o lint do schema e os testes transacionais locais foram executados com sucesso.
 
-A aplicação da migração em um ambiente hospedado fica pendente até o provisionamento de um projeto Supabase exclusivo para o Ortusolis Monitor.
+A migração inicial está aplicada e validada no projeto Supabase exclusivo do Ortusolis Monitor, hospedado na região `sa-east-1`.
