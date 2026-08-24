@@ -729,9 +729,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_xlsx_import: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_controller_id: string
+          p_events: Json
+          p_file_name: string
+          p_file_sha256: string
+          p_generator_id: string
+          p_location_id: string
+        }
+        Returns: Json
+      }
       deactivate_controller: {
         Args: { p_controller_id: string; p_deactivated_on: string }
         Returns: undefined
+      }
+      existing_event_fingerprints: {
+        Args: { p_fingerprints: string[] }
+        Returns: {
+          fingerprint: string
+        }[]
       }
       reactivate_controller: {
         Args: { p_controller_id: string }
@@ -745,6 +764,19 @@ export type Database = {
           p_location_id: string
         }
         Returns: number
+      }
+      record_failed_xlsx_import: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_controller_id: string
+          p_error_message: string
+          p_file_name: string
+          p_file_sha256: string
+          p_generator_id: string
+          p_location_id: string
+        }
+        Returns: string
       }
       register_controller: {
         Args: {

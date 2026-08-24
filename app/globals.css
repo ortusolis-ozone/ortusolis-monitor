@@ -707,6 +707,165 @@ tbody tr:last-child td {
   border-top: 1px solid var(--border);
 }
 
+.import-workflow {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.import-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface);
+  box-shadow: 0 1rem 3rem rgb(23 32 25 / 6%);
+}
+
+.import-panel > .section-title-row {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.import-panel > .section-title-row > p,
+.import-panel > .section-title-row > div > p:last-child {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.import-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.import-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.import-selector-grid label,
+.file-picker {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.import-selector-grid select,
+.file-picker input {
+  width: 100%;
+  min-height: 2.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: #fff;
+  padding: 0.55rem 0.65rem;
+  color: var(--foreground);
+  outline: none;
+}
+
+.import-selector-grid select:focus,
+.file-picker input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(36 90 59 / 14%);
+}
+
+.import-selector-grid select:disabled,
+.file-picker input:disabled {
+  cursor: not-allowed;
+  background: #f3f4f1;
+  color: #7a827c;
+}
+
+.file-picker {
+  padding: 1rem;
+  border: 1px dashed #aeb8b0;
+  border-radius: 0.7rem;
+  background: #fafbf9;
+}
+
+.file-picker small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 450;
+}
+
+.import-action {
+  width: fit-content;
+  min-width: 13rem;
+}
+
+.import-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  border-bottom: 1px solid var(--border);
+  background: var(--border);
+}
+
+.import-summary-grid > div {
+  min-width: 0;
+  padding: 1rem;
+  background: #fafbf9;
+}
+
+.import-summary-grid dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.import-summary-grid dd {
+  margin-top: 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 680;
+  overflow-wrap: anywhere;
+}
+
+.import-confirmation-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border);
+  background: #fafbf9;
+}
+
+.import-confirmation-bar p {
+  max-width: 44rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.import-confirmation-bar .primary-button {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.import-status {
+  display: inline-flex;
+  padding: 0.28rem 0.48rem;
+  border-radius: 999px;
+  background: #f0f1ef;
+  color: #69716b;
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.import-status.confirmed {
+  background: var(--success-background);
+  color: var(--success);
+}
+
+.import-status.failed {
+  background: var(--danger-background);
+  color: var(--danger);
+}
+
 @media (max-width: 38rem) {
   .app-header,
   .user-actions {
@@ -742,8 +901,19 @@ tbody tr:last-child td {
   }
 
   .admin-card-grid,
-  .history-columns {
+  .history-columns,
+  .import-selector-grid,
+  .import-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .import-action {
+    width: 100%;
+  }
+
+  .import-confirmation-bar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .hierarchy-room,
@@ -754,6 +924,11 @@ tbody tr:last-child td {
 
 @media (min-width: 38.01rem) and (max-width: 65rem) {
   .admin-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .import-selector-grid,
+  .import-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

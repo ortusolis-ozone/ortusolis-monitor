@@ -58,11 +58,14 @@ begin
     raise exception 'authenticated não recebeu as leituras públicas necessárias';
   end if;
 
-  if has_table_privilege('authenticated', 'public.import_batches', 'select')
-    or has_table_privilege('authenticated', 'public.raw_events', 'select')
-    or has_table_privilege('authenticated', 'public.applications', 'select')
+  if not has_table_privilege('authenticated', 'public.import_batches', 'select')
+    or not has_table_privilege('authenticated', 'public.raw_events', 'select')
+    or not has_table_privilege('authenticated', 'public.source_mappings', 'select') then
+    raise exception 'authenticated não recebeu as leituras protegidas pelo RLS de importação';
+  end if;
+
+  if has_table_privilege('authenticated', 'public.applications', 'select')
     or has_table_privilege('authenticated', 'public.inconsistencies', 'select')
-    or has_table_privilege('authenticated', 'public.source_mappings', 'select')
     or has_table_privilege('authenticated', 'public.audit_logs', 'select') then
     raise exception 'authenticated recebeu SELECT em tabela técnica';
   end if;
@@ -96,12 +99,11 @@ begin
     raise exception 'alterar o ID permitiu ao cliente A acessar o cliente B';
   end if;
 
-  begin
-    perform 1 from public.raw_events limit 1;
-    raise exception 'cliente A consultou eventos técnicos';
-  exception
-    when insufficient_privilege then null;
-  end;
+  if exists (select 1 from public.raw_events)
+    or exists (select 1 from public.import_batches)
+    or exists (select 1 from public.source_mappings) then
+    raise exception 'cliente A consultou dados técnicos da importação';
+  end if;
 
   update public.clients
   set legal_name = 'Mutação indevida'
@@ -160,12 +162,9 @@ begin
     raise exception 'Master não acessou todos os dados públicos necessários';
   end if;
 
-  begin
-    perform 1 from public.import_batches limit 1;
-    raise exception 'tabela técnica foi exposta ao papel compartilhado authenticated';
-  exception
-    when insufficient_privilege then null;
-  end;
+  perform 1 from public.import_batches limit 1;
+  perform 1 from public.raw_events limit 1;
+  perform 1 from public.source_mappings limit 1;
 end
 $$;
 

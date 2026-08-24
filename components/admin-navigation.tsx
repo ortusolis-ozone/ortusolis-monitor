@@ -8,6 +8,7 @@ const navigation = [
   { href: "/admin/geradores", label: "Geradores" },
   { href: "/admin/controladores", label: "Controladores" },
   { href: "/admin/usuarios", label: "Usuários" },
+  { href: "/admin/importacoes", label: "Importações" },
 ];
 
 export function AdminNavigation() {

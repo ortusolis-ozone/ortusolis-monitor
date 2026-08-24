@@ -43,6 +43,11 @@ export default async function AdminPage() {
           <h2>Usuários</h2>
           <p>Convites individuais vinculados ao cliente e papel de acesso.</p>
         </Link>
+        <Link className="admin-card" href="/admin/importacoes">
+          <span>07</span>
+          <h2>Importações</h2>
+          <p>Validação, prévia e confirmação dos eventos exportados do eWeLink.</p>
+        </Link>
       </section>
     </main>
   );

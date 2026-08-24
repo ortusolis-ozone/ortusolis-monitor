@@ -1,5 +1,7 @@
 # Spec 05 — Importação XLSX
 
+**Status:** concluída.
+
 ## Objetivo
 
 Receber um arquivo eWeLink, validar seu conteúdo, apresentar uma prévia e confirmar os eventos sem duplicidade.
@@ -68,3 +70,15 @@ A prévia é transitória. O navegador mantém o arquivo durante o fluxo; ao con
 - Um arquivo inválido nunca altera registros operacionais.
 - A Ortusolis vê um resumo claro antes de confirmar.
 - O lote registra autor, momento, contexto e resultado.
+
+## Resultado da implementação
+
+- Foi criada a página administrativa de importações com seleção dependente de cliente, unidade, câmara, gerador e controlador, mostrando apenas combinações ativas e atualmente coerentes.
+- O navegador envia o XLSX para um bucket privado temporário. A prévia e a confirmação usam envios independentes, e cada objeto é removido após a leitura.
+- O parser lê a primeira aba preenchida, normaliza os três cabeçalhos obrigatórios, aceita somente `Ligar` e `Desligar`, preserva os valores originais e interpreta as datas no fuso da unidade.
+- Arquivos vazios, inválidos, maiores que 5 MB, com mais de 25.000 eventos ou com registros fora da vigência do controlador são rejeitados antes de qualquer persistência.
+- A prévia exibe quantidade válida, eventos já existentes, repetições internas, origens desconhecidas, período e amostra normalizada. Alterar o arquivo ou qualquer item da hierarquia invalida a prévia.
+- A confirmação repete toda a validação, confere o SHA-256 e executa a persistência em uma transação PostgreSQL. A restrição única de fingerprint ignora sobreposições sem duplicar eventos.
+- O lote registra contexto, autor, status, totais e período. Confirmações e falhas administrativas geram auditoria, e uma falha transacional não deixa eventos parciais.
+- RLS restringe lotes, eventos brutos, mapeamentos e o bucket temporário ao Master ativo. Os objetos de Storage ficam isolados pelo identificador do próprio usuário.
+- Testes SQL transacionais cobrem confirmação, reimportação idempotente, sobreposição parcial, hierarquia e vigência inválidas, falha registrada, auditoria e isolamento de usuários de cliente.
