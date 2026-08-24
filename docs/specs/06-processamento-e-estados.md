@@ -1,5 +1,7 @@
 # Spec 06 — Processamento e estados
 
+**Status:** concluída.
+
 ## Objetivo
 
 Transformar eventos confirmados em aplicações, inconsistências e estados públicos sem revelar a metodologia.
@@ -65,3 +67,14 @@ Não pode conter quantidade de aplicações, eventos, horários, duração, orig
 - Reprocessar sem novos eventos é idempotente.
 - Nenhum dado técnico é copiado para a tabela pública.
 - Uma inconsistência resolvida por evento posterior deixa de aparecer como pendente.
+
+## Resultado da implementação
+
+- Cada confirmação de importação dispara, dentro da mesma transação, o reprocessamento completo do gerador. Um lock transacional por gerador serializa confirmações concorrentes.
+- Eventos confirmados são reclassificados pelo mapeamento ativo e ordenados por horário e fingerprint. Eventos de teste são ignorados; origens desconhecidas geram pendência sem interferir no pareamento.
+- O pareamento reconcilia pares completos, eventos incompletos ou invertidos, `Ligar` consecutivos e trocas de controlador. Aplicações existentes são preservadas quando continuam válidas.
+- Inconsistências derivadas possuem chave determinística. Pendências que deixam de existir são resolvidas automaticamente, enquanto revisões administrativas permanecem preservadas entre reprocessamentos.
+- Alterações no mapeamento de origem e revisões de inconsistências recalculam automaticamente os geradores e seus estados públicos afetados.
+- `client_daily_status` é reconstruída da primeira data confirmada até a data local atual, usando a precedência definida e o maior horário confirmado como `updated_at`.
+- A publicação pública continua restrita aos sete campos sanitizados de hierarquia, data, estado e atualização; tabelas técnicas permanecem inacessíveis a usuários de cliente.
+- Testes transacionais cobrem duplicatas, testes intercalados, pares completos e incompletos, sequências invertidas, controladores distintos, importações fora de ordem, remapeamento, revisão, resolução posterior e idempotência.
