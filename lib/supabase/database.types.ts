@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       applications: {
@@ -704,7 +729,49 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      deactivate_controller: {
+        Args: { p_controller_id: string; p_deactivated_on: string }
+        Returns: undefined
+      }
+      reactivate_controller: {
+        Args: { p_controller_id: string }
+        Returns: undefined
+      }
+      reassign_generator: {
+        Args: {
+          p_cold_room_id: string
+          p_effective_on: string
+          p_generator_id: string
+          p_location_id: string
+        }
+        Returns: number
+      }
+      register_controller: {
+        Args: {
+          p_activated_on: string
+          p_generator_id: string
+          p_identifier: string
+        }
+        Returns: string
+      }
+      register_generator: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_identifier: string
+          p_location_id: string
+          p_valid_from: string
+        }
+        Returns: string
+      }
+      replace_controller: {
+        Args: {
+          p_activated_on: string
+          p_generator_id: string
+          p_identifier: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
@@ -833,6 +900,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

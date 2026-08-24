@@ -1,5 +1,7 @@
 # Spec 04 — Cadastros operacionais
 
+**Status:** concluída.
+
 ## Objetivo
 
 Permitir que a Ortusolis configure a estrutura necessária para associar corretamente cada importação.
@@ -47,3 +49,15 @@ Permitir que a Ortusolis configure a estrutura necessária para associar correta
 - O sistema preserva onde o gerador estava e qual controlador utilizava em uma data anterior.
 - Apenas combinações ativas e coerentes aparecem no fluxo de importação.
 - Toda alteração relevante gera registro de auditoria.
+
+## Resultado da implementação
+
+- Foram criadas listagens com criação, edição, filtro por status e ativação/inativação para clientes, unidades, câmaras, geradores, controladores e usuários.
+- A listagem de clientes permite busca por razão social ou CNPJ normalizado, e a página de detalhe apresenta a hierarquia atual com os históricos de alocação e controlador.
+- CNPJ é normalizado e validado pelo algoritmo dos dígitos verificadores antes da persistência; categorias de câmara usam somente a lista do PRD.
+- Geradores são criados junto da primeira alocação. Realocação fecha a vigência atual e abre a próxima de forma atômica no banco.
+- Substituição de controlador encerra o anterior e cria o novo na mesma transação, com datas interpretadas no fuso da unidade.
+- RLS permite mutações somente ao Master. Usuários de cliente continuam sem mutações e sem leitura das vigências técnicas.
+- Triggers atualizam `updated_at`, auditam criação, edição e mudança de status e bloqueiam exclusões físicas inclusive quando o cadastro ainda não possui histórico.
+- O convite de usuário usa a API administrativa exclusivamente no servidor; o perfil e o vínculo ao cliente são persistidos pelo contexto autenticado do Master.
+- Testes transacionais cobrem isolamento, relações entre clientes, sobreposição, histórico, auditoria e bloqueio de exclusão.

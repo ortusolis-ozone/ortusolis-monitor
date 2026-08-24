@@ -73,6 +73,8 @@ set local role authenticated;
 set local request.jwt.claim.sub = '20000000-0000-0000-0000-000000000002';
 
 do $$
+declare
+  affected_rows integer;
 begin
   if (select count(*) from public.profiles) <> 1 then
     raise exception 'cliente A acessou perfil de outro usuário';
@@ -101,14 +103,15 @@ begin
     when insufficient_privilege then null;
   end;
 
-  begin
-    update public.clients
-    set legal_name = 'Mutação indevida'
-    where id = '10000000-0000-0000-0000-000000000001';
+  update public.clients
+  set legal_name = 'Mutação indevida'
+  where id = '10000000-0000-0000-0000-000000000001';
+
+  get diagnostics affected_rows = row_count;
+
+  if affected_rows <> 0 then
     raise exception 'cliente A realizou mutação';
-  exception
-    when insufficient_privilege then null;
-  end;
+  end if;
 end
 $$;
 
