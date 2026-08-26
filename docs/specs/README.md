@@ -25,7 +25,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 5 | [Importação XLSX](./05-importacao-xlsx.md) | Validação, prévia e confirmação idempotente | Concluída |
 | 6 | [Processamento e estados](./06-processamento-e-estados.md) | Aplicações, inconsistências e visão sanitizada | Pendente |
 | 7 | [Painel administrativo](./07-painel-administrativo.md) | Operação completa pela Ortusolis | Pendente |
-| 8 | [Portal do cliente](./08-portal-do-cliente.md) | Consulta segura e responsiva dos estados públicos | Pendente |
+| 8 | [Portal do cliente](./08-portal-do-cliente.md) | Consulta segura e responsiva dos estados públicos | Concluída |
 | 9 | [Qualidade e entrega](./09-qualidade-e-entrega.md) | Testes, segurança e critérios para publicação | Pendente |
 
 ## Marcos

@@ -1,5 +1,7 @@
 # Spec 08 — Portal do cliente
 
+**Status:** concluída.
+
 ## Objetivo
 
 Permitir consulta rápida dos registros de aplicação sem expor eventos ou parâmetros operacionais.
@@ -47,3 +49,13 @@ A interface deve permitir abrir o nível inferior para identificar qual item det
 - Histórico e filtros funcionam sem revelar dados técnicos.
 - Estados vazios explicam a diferença entre ausência de dados e espera por importação.
 - As principais tarefas funcionam nos três tamanhos de tela previstos.
+
+## Resultado da implementação
+
+- O portal abre diretamente na empresa vinculada ao perfil autenticado e apresenta uma visão consolidada expansível por unidade, câmara e gerador.
+- A consolidação usa a precedência pública definida, destaca imediatamente itens com verificação necessária e oferece atalhos para o histórico já filtrado no nível selecionado.
+- O cabeçalho converte imediatamente o maior `updated_at` sanitizado em uma data pública, sem serializar horários, e o histórico diário combina filtros de período, unidade, câmara e gerador por navegação server-rendered.
+- Toda leitura da página usa apenas `clients`, `locations`, `cold_rooms`, `generators` e `client_daily_status`, com seleção explícita de campos sanitizados. Não foi criado endpoint JSON para o portal.
+- A interface diferencia estados publicados, ausência de registros e períodos ainda não alcançados, sem afirmar quantidade, duração, programação ou funcionamento do equipamento.
+- O layout possui tabela responsiva convertida em cartões no smartphone, grade intermediária no tablet e hierarquia expansível no desktop, além de estados de carregamento e erro recuperável.
+- Testes transacionais cobrem os três papéis de cliente, isolamento entre duas empresas, filtros combinados, precedência, data do cabeçalho, schema sanitizado e bloqueio de dados operacionais.
