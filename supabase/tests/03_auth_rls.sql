@@ -60,12 +60,12 @@ begin
 
   if not has_table_privilege('authenticated', 'public.import_batches', 'select')
     or not has_table_privilege('authenticated', 'public.raw_events', 'select')
-    or not has_table_privilege('authenticated', 'public.source_mappings', 'select') then
+    or not has_table_privilege('authenticated', 'public.source_mappings', 'select')
+    or not has_table_privilege('authenticated', 'public.inconsistencies', 'select') then
     raise exception 'authenticated não recebeu as leituras protegidas pelo RLS de importação';
   end if;
 
   if has_table_privilege('authenticated', 'public.applications', 'select')
-    or has_table_privilege('authenticated', 'public.inconsistencies', 'select')
     or has_table_privilege('authenticated', 'public.audit_logs', 'select') then
     raise exception 'authenticated recebeu SELECT em tabela técnica';
   end if;
@@ -101,7 +101,8 @@ begin
 
   if exists (select 1 from public.raw_events)
     or exists (select 1 from public.import_batches)
-    or exists (select 1 from public.source_mappings) then
+    or exists (select 1 from public.source_mappings)
+    or exists (select 1 from public.inconsistencies) then
     raise exception 'cliente A consultou dados técnicos da importação';
   end if;
 

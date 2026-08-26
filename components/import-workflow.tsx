@@ -548,7 +548,7 @@ export function ImportWorkflow({
           </div>
         </div>
         {recentBatches.length === 0 ? (
-          <p className="empty-state">Nenhuma importação confirmada ainda.</p>
+          <p className="empty-state">Nenhuma importação registrada ainda.</p>
         ) : (
           <div className="table-wrap">
             <table>
@@ -556,10 +556,10 @@ export function ImportWorkflow({
                 <tr>
                   <th>Arquivo</th>
                   <th>Contexto</th>
+                  <th>Responsável</th>
+                  <th>Período</th>
                   <th>Status</th>
-                  <th>Linhas</th>
-                  <th>Inseridas</th>
-                  <th>Duplicadas</th>
+                  <th>Resultado</th>
                   <th>Recebido em</th>
                 </tr>
               </thead>
@@ -568,16 +568,38 @@ export function ImportWorkflow({
                   <tr key={batch.id}>
                     <td>{batch.fileName}</td>
                     <td>
-                      {batch.clientName} · {batch.generatorName} · {batch.controllerName}
+                      {batch.clientName} · {batch.locationName} · {batch.coldRoomName}
+                      <small className="table-secondary-line">
+                        {batch.generatorName} · {batch.controllerName}
+                      </small>
+                    </td>
+                    <td>{batch.authorName}</td>
+                    <td>
+                      {batch.periodStart
+                        ? `${formatDateTime(batch.periodStart)} — ${formatDateTime(batch.periodEnd)}`
+                        : "—"}
                     </td>
                     <td>
                       <span className={`import-status ${batch.status}`}>
                         {batchStatusLabel(batch.status)}
                       </span>
                     </td>
-                    <td>{batch.totalRows.toLocaleString("pt-BR")}</td>
-                    <td>{batch.insertedRows.toLocaleString("pt-BR")}</td>
-                    <td>{batch.duplicateRows.toLocaleString("pt-BR")}</td>
+                    <td>
+                      {batch.status === "failed" ? (
+                        <span className="failure-detail">
+                          {batch.errorMessage ?? "Falha sem mensagem registrada."}
+                        </span>
+                      ) : (
+                        <span>
+                          {batch.insertedRows.toLocaleString("pt-BR")} inserida(s) ·{" "}
+                          {batch.duplicateRows.toLocaleString("pt-BR")} duplicada(s) ·{" "}
+                          {batch.unknownSourceRows.toLocaleString("pt-BR")} desconhecida(s)
+                          <small className="table-secondary-line">
+                            {batch.totalRows.toLocaleString("pt-BR")} linha(s) no total
+                          </small>
+                        </span>
+                      )}
+                    </td>
                     <td>{formatDateTime(batch.createdAt)}</td>
                   </tr>
                 ))}

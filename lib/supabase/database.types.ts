@@ -752,6 +752,58 @@ export type Database = {
           fingerprint: string
         }[]
       }
+      list_admin_inconsistencies: {
+        Args: {
+          p_client_id?: string
+          p_end_date?: string
+          p_generator_id?: string
+          p_location_id?: string
+          p_start_date?: string
+          p_status?: string
+          p_type?: string
+        }
+        Returns: {
+          client_id: string
+          client_name: string
+          created_at: string
+          event_controller_identifier: string
+          event_id: number
+          event_occurred_at: string
+          event_operation: string
+          event_source_classification: string
+          event_source_normalized: string
+          event_source_original: string
+          generator_id: string
+          generator_identifier: string
+          id: number
+          location_id: string
+          location_name: string
+          public_date: string
+          related_event_controller_identifier: string
+          related_event_id: number
+          related_event_occurred_at: string
+          related_event_operation: string
+          related_event_source_classification: string
+          related_event_source_original: string
+          review_note: string
+          reviewed_at: string
+          reviewed_by: string
+          reviewed_by_name: string
+          status: string
+          type: string
+        }[]
+      }
+      list_source_values: {
+        Args: never
+        Returns: {
+          classification: string
+          event_count: number
+          example_source: string
+          is_active: boolean
+          last_seen_at: string
+          normalized_source: string
+        }[]
+      }
       reactivate_controller: {
         Args: { p_controller_id: string }
         Returns: undefined
@@ -796,6 +848,10 @@ export type Database = {
         }
         Returns: string
       }
+      reopen_inconsistency: {
+        Args: { p_inconsistency_id: number }
+        Returns: boolean
+      }
       replace_controller: {
         Args: {
           p_activated_on: string
@@ -803,6 +859,14 @@ export type Database = {
           p_identifier: string
         }
         Returns: string
+      }
+      review_inconsistency: {
+        Args: { p_inconsistency_id: number; p_review_note?: string }
+        Returns: boolean
+      }
+      set_source_mapping: {
+        Args: { p_classification: string; p_normalized_source: string }
+        Returns: number
       }
     }
     Enums: {

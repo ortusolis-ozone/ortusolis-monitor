@@ -34,6 +34,7 @@ export async function getImportPageData(): Promise<{
     generatorsResponse,
     assignmentsResponse,
     controllersResponse,
+    profilesResponse,
     batchesResponse,
   ] = await Promise.all([
     supabase
@@ -61,9 +62,12 @@ export async function getImportPageData(): Promise<{
       .select("id, client_id, generator_id, identifier, is_active")
       .order("identifier"),
     supabase
+      .from("profiles")
+      .select("id, full_name"),
+    supabase
       .from("import_batches")
       .select(
-        "id, file_name, status, created_at, total_rows, inserted_rows, duplicate_rows, client_id, generator_id, controller_id",
+        "id, file_name, status, created_at, confirmed_at, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows, error_message, client_id, location_id, cold_room_id, generator_id, controller_id, created_by",
       )
       .order("created_at", { ascending: false })
       .limit(12),
@@ -98,6 +102,11 @@ export async function getImportPageData(): Promise<{
     controllersResponse.data,
     controllersResponse.error,
     "os controladores da importação",
+  );
+  const profiles = assertData(
+    profilesResponse.data,
+    profilesResponse.error,
+    "os autores das importações",
   );
   const batches = assertData(
     batchesResponse.data,
@@ -165,8 +174,15 @@ export async function getImportPageData(): Promise<{
   const generatorNames = new Map(
     generators.map((generator) => [generator.id, generator.identifier]),
   );
+  const locationNames = new Map(
+    locations.map((location) => [location.id, location.name]),
+  );
+  const roomNames = new Map(rooms.map((room) => [room.id, room.name]));
   const controllerNames = new Map(
     controllers.map((controller) => [controller.id, controller.identifier]),
+  );
+  const profileNames = new Map(
+    profiles.map((storedProfile) => [storedProfile.id, storedProfile.full_name]),
   );
 
   return {
@@ -199,14 +215,24 @@ export async function getImportPageData(): Promise<{
           ? batch.status
           : "processing",
       createdAt: batch.created_at,
+      confirmedAt: batch.confirmed_at,
+      periodStart: batch.period_start,
+      periodEnd: batch.period_end,
       totalRows: batch.total_rows,
       insertedRows: batch.inserted_rows,
       duplicateRows: batch.duplicate_rows,
+      unknownSourceRows: batch.unknown_source_rows,
+      errorMessage: batch.error_message,
       clientName: clientNames.get(batch.client_id) ?? "Cliente indisponível",
+      locationName:
+        locationNames.get(batch.location_id) ?? "Unidade indisponível",
+      coldRoomName: roomNames.get(batch.cold_room_id) ?? "Câmara indisponível",
       generatorName:
         generatorNames.get(batch.generator_id) ?? "Gerador indisponível",
       controllerName:
         controllerNames.get(batch.controller_id) ?? "Controlador indisponível",
+      authorName:
+        profileNames.get(batch.created_by) ?? "Usuário indisponível",
     })),
   };
 }

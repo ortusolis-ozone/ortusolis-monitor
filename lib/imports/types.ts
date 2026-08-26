@@ -103,12 +103,20 @@ export type ImportBatchListItem = {
   fileName: string;
   status: "processing" | "confirmed" | "failed";
   createdAt: string;
+  confirmedAt: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
   totalRows: number;
   insertedRows: number;
   duplicateRows: number;
+  unknownSourceRows: number;
+  errorMessage: string | null;
   clientName: string;
+  locationName: string;
+  coldRoomName: string;
   generatorName: string;
   controllerName: string;
+  authorName: string;
 };
 
 export type ParsedImportEvent = {

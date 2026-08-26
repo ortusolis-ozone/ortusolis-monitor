@@ -1,5 +1,7 @@
 # Spec 07 — Painel administrativo
 
+**Status:** concluída.
+
 ## Objetivo
 
 Reunir as operações necessárias para a Ortusolis administrar clientes, importar registros e revisar problemas.
@@ -54,3 +56,15 @@ Não são necessários gráficos analíticos no MVP.
 - A interface deixa claro quando uma alteração provoca reprocessamento.
 - Ações administrativas importantes são auditadas.
 - Estados de carregamento, vazio, sucesso e erro estão previstos nas telas.
+
+## Resultado da implementação
+
+- A navegação administrativa foi reorganizada nos seis fluxos do MVP, mantendo atalhos para unidades, câmaras, geradores, alocações e controladores na visão geral.
+- A visão geral passou a exibir clientes e geradores ativos, a contagem exata de inconsistências pendentes e as cinco importações mais recentes, sem gráficos analíticos.
+- O histórico de importações agora apresenta autor, arquivo, cliente, unidade, câmara, gerador, controlador, intervalo, totais, origens desconhecidas, resultado e mensagem de falha.
+- A tela de inconsistências abre nas pendências e permite combinar filtros por estado, tipo, cliente, unidade, gerador e período. Cada registro mostra os eventos técnicos principal e relacionado.
+- Revisar registra nota interna opcional, autor e horário. Reabrir remove os dados da revisão; as duas ações solicitam confirmação, são auditadas e reprocessam os estados afetados.
+- O mapeamento reúne os valores confirmados de `Acionado por`, quantidade de eventos, última ocorrência e classificação atual. Programar, marcar como teste ou voltar a desconhecido solicita confirmação e reprocessa todos os geradores afetados.
+- As consultas administrativas usam funções `security invoker`, permissões mínimas e RLS exclusiva para Master ativo. Usuários de cliente recebem listas vazias e não conseguem executar mutações administrativas.
+- Foram adicionados estados globais de carregamento e erro, vazios específicos e retornos de sucesso/erro nos formulários. A interface foi validada em navegador real nas larguras desktop e móvel.
+- Testes SQL transacionais cobrem RLS, filtros, contagem de pendências, revisão, reabertura, autoria, auditoria, remapeamento e reprocessamento. TypeScript, ESLint, lint do banco e build de produção também foram validados.
