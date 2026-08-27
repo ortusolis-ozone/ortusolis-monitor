@@ -1,0 +1,196 @@
+:root {
+  color-scheme: light;
+
+  /* Brand and core interface colors */
+  --color-canvas: #f5f6f2;
+  --color-ink: #172019;
+  --color-surface: #ffffff;
+  --color-border: #d9ded7;
+  --color-text-muted: #5d685f;
+  --color-brand: #245a3b;
+  --color-brand-hover: #19472d;
+  --color-brand-soft: #edf2ed;
+  --color-brand-tint: #f4f7f3;
+  --color-brand-highlight: #f4f8f3;
+  --color-brand-surface: #f9fcf8;
+  --color-brand-surface-strong: #edf5ee;
+  --color-brand-border: #cad8cd;
+  --color-brand-border-strong: #aec4b4;
+  --color-brand-glow: rgb(184 216 190 / 42%);
+  --color-brand-alpha-14: rgb(36 90 59 / 14%);
+  --color-brand-alpha-18: rgb(36 90 59 / 18%);
+  --color-brand-alpha-22: rgb(36 90 59 / 22%);
+
+  /* Neutral surfaces and content */
+  --color-white: #fff;
+  --color-surface-subtle: #fafbf9;
+  --color-surface-soft: #fbfcfa;
+  --color-surface-hover: #f8faf8;
+  --color-surface-tinted: #f8faf7;
+  --color-surface-control: #f8f9f7;
+  --color-surface-disabled: #f3f4f1;
+  --color-surface-empty: #f3f4f2;
+  --color-surface-mobile: #f6f7f4;
+  --color-surface-muted: #f0f1ef;
+  --color-skeleton: #f0f2ee;
+  --color-skeleton-soft: #eef1ed;
+  --color-border-subtle: #e7eae5;
+  --color-border-soft: #e2e7e1;
+  --color-border-control: #e3e7e1;
+  --color-border-muted: #d8dcd7;
+  --color-border-hover: #a9b3aa;
+  --color-border-hover-strong: #abb9ae;
+  --color-border-strong: #aeb9b0;
+  --color-border-dashed: #aeb8b0;
+  --color-text-subtle: #69716b;
+  --color-text-disabled: #7a827c;
+  --color-text-neutral: #626a64;
+  --color-text-neutral-soft: #6a726c;
+  --color-surface-glass-72: rgb(255 255 255 / 72%);
+  --color-surface-glass-75: rgb(255 255 255 / 75%);
+  --color-surface-glass-76: rgb(255 255 255 / 76%);
+  --color-text-inverse-muted: rgb(255 255 255 / 78%);
+
+  /* Feedback and operational states */
+  --color-danger: #9e2e2e;
+  --color-danger-surface: #fff0f0;
+  --color-danger-border: #e8bcbc;
+  --color-danger-border-hover: #cd8f8f;
+  --color-danger-surface-hover: #ffe5e5;
+  --color-success: #23633b;
+  --color-success-surface: #eef8f1;
+  --color-warning: #75520d;
+  --color-warning-surface: #fff5de;
+  --color-attention-border: #dec79c;
+  --color-attention-surface: #fffdf7;
+  --color-notice: #684b13;
+  --color-notice-border: #d8c89c;
+  --color-notice-surface: #fffaf0;
+  --color-info: #334f91;
+  --color-info-surface: #edf2ff;
+  --color-status-info: #34538f;
+  --color-status-info-surface: #edf3ff;
+  --color-status-pending: #8a3d13;
+  --color-status-pending-surface: #fff0e7;
+  --color-verification: #6f4c34;
+  --color-verification-border: #dfb68f;
+  --color-verification-divider: #ead5c2;
+  --color-verification-surface: #fffaf6;
+  --color-verification-item: #fffdfb;
+
+  /* Typography */
+  --font-family-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-family-mono: var(--font-geist-mono), monospace;
+  --font-weight-regular: 450;
+  --font-weight-medium: 550;
+  --font-weight-label: 600;
+  --font-weight-semibold: 650;
+  --font-weight-heading: 680;
+  --font-weight-display: 690;
+  --font-weight-bold: 700;
+  --font-weight-emphasis: 750;
+  --font-size-micro: 0.65rem;
+  --font-size-detail: 0.68rem;
+  --font-size-xs: 0.7rem;
+  --font-size-caption: 0.72rem;
+  --font-size-meta: 0.73rem;
+  --font-size-label: 0.75rem;
+  --font-size-helper: 0.76rem;
+  --font-size-compact: 0.78rem;
+  --font-size-copy-compact: 0.8rem;
+  --font-size-control: 0.82rem;
+  --font-size-link: 0.83rem;
+  --font-size-notice: 0.84rem;
+  --font-size-body-muted: 0.85rem;
+  --font-size-body-small: 0.86rem;
+  --font-size-field: 0.875rem;
+  --font-size-body: 0.9rem;
+  --font-size-body-emphasis: 0.92rem;
+  --font-size-title-small: 1.05rem;
+  --font-size-heading-compact: 1.1rem;
+  --font-size-app-area: 1.15rem;
+  --font-size-heading-medium: 1.2rem;
+  --font-size-title: 1.25rem;
+  --font-size-title-large: 1.5rem;
+  --font-size-auth-title: clamp(1.65rem, 5vw, 2.25rem);
+  --font-size-section-title: clamp(1.3rem, 3vw, 1.65rem);
+  --font-size-page-title: clamp(2rem, 5vw, 3.4rem);
+  --font-size-metric: clamp(2.2rem, 5vw, 3.2rem);
+  --font-size-portal-title: clamp(2.1rem, 5vw, 3.65rem);
+  --leading-none: 1;
+  --leading-display: 1.02;
+  --leading-tight: 1.1;
+  --leading-badge: 1.2;
+  --leading-error: 1.35;
+  --leading-compact: 1.4;
+  --leading-message: 1.45;
+  --leading-standard: 1.5;
+  --leading-body: 1.55;
+  --leading-relaxed: 1.6;
+  --tracking-metric: -0.06em;
+  --tracking-hero: -0.055em;
+  --tracking-display: -0.05em;
+  --tracking-heading: -0.035em;
+  --tracking-title: -0.025em;
+  --tracking-subtle: 0.025em;
+  --tracking-compact: 0.04em;
+  --tracking-meta: 0.045em;
+  --tracking-label: 0.055em;
+  --tracking-overline: 0.09em;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Shape */
+  --radius-1: 0.5rem;
+  --radius-2: 0.55rem;
+  --radius-detail: 0.6rem;
+  --radius-3: 0.65rem;
+  --radius-4: 0.7rem;
+  --radius-5: 0.75rem;
+  --radius-6: 0.8rem;
+  --radius-7: 0.85rem;
+  --radius-8: 0.9rem;
+  --radius-9: 1rem;
+  --radius-10: 1.15rem;
+  --radius-circle: 50%;
+  --radius-full: 999px;
+
+  /* Elevation and focus */
+  --shadow-focus: 0 0 0 3px var(--color-brand-alpha-14);
+  --shadow-soft: 0 0.7rem 2rem rgb(23 32 25 / 6%);
+  --shadow-card: 0 0.8rem 2rem rgb(23 32 25 / 5%);
+  --shadow-panel: 0 1rem 3rem rgb(23 32 25 / 5%);
+  --shadow-panel-strong: 0 1rem 3rem rgb(23 32 25 / 6%);
+  --shadow-dialog: 0 1rem 3rem rgb(23 32 25 / 8%);
+  --shadow-hover: 0 1.2rem 2.5rem rgb(23 32 25 / 9%);
+  --shadow-hero: 0 1.2rem 3.5rem rgb(23 32 25 / 7%);
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-base: 160ms;
+  --duration-skeleton: 1.5s;
+  --ease-standard: ease;
+  --ease-emphasized: ease-in-out;
+
+  /* Layout */
+  --layout-app-max: 88rem;
+  --layout-portal-max: 82rem;
+}
+
+@theme inline {
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-ink);
+  --color-muted: var(--color-text-muted);
+  --color-primary: var(--color-brand);
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
+}
