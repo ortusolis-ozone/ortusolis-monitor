@@ -8,3 +8,14 @@ export function createClient() {
 
   return createBrowserClient<Database>(url, publishableKey);
 }
+
+export function createAuthCallbackClient() {
+  const { url, publishableKey } = getPublicSupabaseConfig();
+
+  return createBrowserClient<Database>(url, publishableKey, {
+    auth: {
+      detectSessionInUrl: false,
+    },
+    isSingleton: false,
+  });
+}

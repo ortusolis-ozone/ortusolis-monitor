@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 import { requireMaster } from "@/lib/auth/profile";
+import { getRequestOrigin } from "@/lib/auth/url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isValidCnpj, normalizeCnpj } from "@/lib/validation/cnpj";
@@ -818,8 +819,11 @@ export async function inviteUserAction(
   }
 
   const admin = createAdminClient();
+  const origin = await getRequestOrigin();
   const { data: inviteData, error: inviteError } =
-    await admin.auth.admin.inviteUserByEmail(email);
+    await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${origin}/auth/callback`,
+    });
 
   if (inviteError || !inviteData.user) {
     return fieldError(
