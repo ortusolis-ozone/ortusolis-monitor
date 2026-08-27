@@ -53,6 +53,7 @@ Permitir que a Ortusolis configure a estrutura necessária para associar correta
 ## Resultado da implementação
 
 - Foram criadas listagens com criação, edição, filtro por status e ativação/inativação para clientes, unidades, câmaras, geradores, controladores e usuários.
+- O cadastro guiado permite criar cliente, primeira unidade, câmara, gerador/alocação e controlador em uma única confirmação atômica; as telas separadas permanecem disponíveis para manutenção posterior.
 - A listagem de clientes permite busca por razão social ou CNPJ normalizado, e a página de detalhe apresenta a hierarquia atual com os históricos de alocação e controlador.
 - CNPJ é normalizado e validado pelo algoritmo dos dígitos verificadores antes da persistência; categorias de câmara usam somente a lista do PRD.
 - Geradores são criados junto da primeira alocação. Realocação fecha a vigência atual e abre a próxima de forma atômica no banco.

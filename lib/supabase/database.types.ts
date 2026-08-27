@@ -830,6 +830,22 @@ export type Database = {
         }
         Returns: string
       }
+      register_complete_client_structure: {
+        Args: {
+          p_client_cnpj: string
+          p_client_legal_name: string
+          p_cold_room_category: string
+          p_cold_room_name: string
+          p_controller_activated_on: string
+          p_controller_identifier: string
+          p_generator_identifier: string
+          p_generator_valid_from: string
+          p_location_description: string
+          p_location_name: string
+          p_location_time_zone: string
+        }
+        Returns: Json
+      }
       register_controller: {
         Args: {
           p_activated_on: string

@@ -30,30 +30,39 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
           <p>Busque por nome ou CNPJ e acesse a hierarquia completa.</p>
         </div>
 
-        <details className="create-panel">
-          <summary>Novo cliente</summary>
-          <OperationalForm
-            action={createClientAction}
-            submitLabel="Cadastrar cliente"
-          >
-            <label>
-              Razão social ou nome
-              <input autoComplete="organization" name="legal_name" required />
-              <FieldError name="legal_name" />
-            </label>
-            <label>
-              CNPJ
-              <input
-                autoComplete="off"
-                inputMode="numeric"
-                name="cnpj"
-                placeholder="00.000.000/0000-00"
-                required
-              />
-              <FieldError name="cnpj" />
-            </label>
-          </OperationalForm>
-        </details>
+        <div className="page-heading-actions">
+          <Link className="primary-button" href="/admin/clientes/novo">
+            Cadastrar estrutura completa
+          </Link>
+          <details className="create-panel">
+            <summary>Cadastrar somente cliente</summary>
+            <OperationalForm
+              action={createClientAction}
+              submitLabel="Cadastrar cliente"
+            >
+              <label>
+                Razão social ou nome
+                <input
+                  autoComplete="organization"
+                  name="legal_name"
+                  required
+                />
+                <FieldError name="legal_name" />
+              </label>
+              <label>
+                CNPJ
+                <input
+                  autoComplete="off"
+                  inputMode="numeric"
+                  name="cnpj"
+                  placeholder="00.000.000/0000-00"
+                  required
+                />
+                <FieldError name="cnpj" />
+              </label>
+            </OperationalForm>
+          </details>
+        </div>
       </section>
 
       <ListFilters

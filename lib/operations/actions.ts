@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 import { requireMaster } from "@/lib/auth/profile";
@@ -140,6 +141,125 @@ export async function createClientAction(
   return error
     ? databaseError(error, "cnpj")
     : success("Cliente cadastrado com sucesso.");
+}
+
+export async function createCompleteClientStructureAction(
+  _previousState: OperationalActionState,
+  formData: FormData,
+): Promise<OperationalActionState> {
+  await requireMaster();
+
+  const clientLegalName = formText(formData, "client_legal_name");
+  const clientCnpj = normalizeCnpj(formText(formData, "client_cnpj"));
+  const locationName = formText(formData, "location_name");
+  const locationDescription = formText(formData, "location_description");
+  const locationTimeZone =
+    formText(formData, "location_time_zone") || "America/Fortaleza";
+  const coldRoomName = formText(formData, "cold_room_name");
+  const coldRoomCategory = formText(formData, "cold_room_category");
+  const generatorIdentifier = formText(formData, "generator_identifier");
+  const generatorValidFrom = formText(formData, "generator_valid_from");
+  const controllerIdentifier = formText(formData, "controller_identifier");
+  const controllerActivatedOn = formText(
+    formData,
+    "controller_activated_on",
+  );
+
+  if (!clientLegalName) {
+    return fieldError(
+      "client_legal_name",
+      "Informe a razão social ou o nome.",
+    );
+  }
+  if (!isValidCnpj(clientCnpj)) {
+    return fieldError("client_cnpj", "Informe um CNPJ válido.");
+  }
+  if (!locationName) {
+    return fieldError("location_name", "Informe o nome da unidade.");
+  }
+  if (!isValidTimeZone(locationTimeZone)) {
+    return fieldError(
+      "location_time_zone",
+      "Informe um fuso IANA válido.",
+    );
+  }
+  if (!coldRoomName) {
+    return fieldError("cold_room_name", "Informe o nome da câmara.");
+  }
+  if (!isColdRoomCategory(coldRoomCategory)) {
+    return fieldError(
+      "cold_room_category",
+      "Selecione uma categoria válida.",
+    );
+  }
+  if (!generatorIdentifier) {
+    return fieldError(
+      "generator_identifier",
+      "Informe a identificação do gerador.",
+    );
+  }
+  if (!isValidDate(generatorValidFrom)) {
+    return fieldError(
+      "generator_valid_from",
+      "Informe uma data inicial válida.",
+    );
+  }
+  if (!controllerIdentifier) {
+    return fieldError(
+      "controller_identifier",
+      "Informe a identificação do controlador.",
+    );
+  }
+  if (!isValidDate(controllerActivatedOn)) {
+    return fieldError(
+      "controller_activated_on",
+      "Informe uma data de ativação válida.",
+    );
+  }
+  if (controllerActivatedOn < generatorValidFrom) {
+    return fieldError(
+      "controller_activated_on",
+      "A ativação não pode ser anterior ao início da alocação do gerador.",
+    );
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(
+    "register_complete_client_structure",
+    {
+      p_client_legal_name: clientLegalName,
+      p_client_cnpj: clientCnpj,
+      p_location_name: locationName,
+      p_location_description: locationDescription,
+      p_location_time_zone: locationTimeZone,
+      p_cold_room_name: coldRoomName,
+      p_cold_room_category: coldRoomCategory,
+      p_generator_identifier: generatorIdentifier,
+      p_generator_valid_from: generatorValidFrom,
+      p_controller_identifier: controllerIdentifier,
+      p_controller_activated_on: controllerActivatedOn,
+    },
+  );
+
+  if (error) {
+    if (error.code === "23505" && error.message.includes("cnpj")) {
+      return fieldError("client_cnpj", "Já existe um cliente com esse CNPJ.");
+    }
+
+    return databaseError(error);
+  }
+
+  const clientId =
+    data &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    typeof data.client_id === "string" &&
+    uuidPattern.test(data.client_id)
+      ? data.client_id
+      : null;
+
+  revalidatePath("/admin", "layout");
+  redirect(clientId ? `/admin/clientes/${clientId}` : "/admin/clientes");
 }
 
 export async function editClientAction(

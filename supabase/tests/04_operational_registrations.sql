@@ -127,6 +127,114 @@ begin
 end
 $$;
 
+do $$
+declare
+  structure jsonb;
+  complete_client_id uuid;
+begin
+  structure := public.register_complete_client_structure(
+    'Cliente completo',
+    '90000000000004',
+    'Unidade completa',
+    'Endereço completo',
+    'America/Fortaleza',
+    'Câmara completa',
+    'aves',
+    'Gerador completo',
+    '2025-01-01',
+    'Controlador completo',
+    '2025-01-01'
+  );
+
+  complete_client_id := (structure ->> 'client_id')::uuid;
+
+  if complete_client_id is null
+    or not exists (
+      select 1
+      from public.locations
+      where id = (structure ->> 'location_id')::uuid
+        and client_id = complete_client_id
+    )
+    or not exists (
+      select 1
+      from public.cold_rooms
+      where id = (structure ->> 'cold_room_id')::uuid
+        and client_id = complete_client_id
+        and location_id = (structure ->> 'location_id')::uuid
+    )
+    or not exists (
+      select 1
+      from public.generator_assignments
+      where generator_id = (structure ->> 'generator_id')::uuid
+        and client_id = complete_client_id
+        and cold_room_id = (structure ->> 'cold_room_id')::uuid
+        and valid_from = '2025-01-01 03:00:00+00'
+    )
+    or not exists (
+      select 1
+      from public.controllers
+      where id = (structure ->> 'controller_id')::uuid
+        and generator_id = (structure ->> 'generator_id')::uuid
+        and client_id = complete_client_id
+        and activated_at = '2025-01-01 03:00:00+00'
+    ) then
+    raise exception 'o cadastro completo não criou uma hierarquia coerente';
+  end if;
+
+  begin
+    perform public.register_complete_client_structure(
+      'Cliente incompleto',
+      '99999999999999',
+      'Unidade incompleta',
+      null,
+      'America/Fortaleza',
+      'Câmara incompleta',
+      'categoria_invalida',
+      'Gerador incompleto',
+      '2025-01-01',
+      'Controlador incompleto',
+      '2025-01-01'
+    );
+
+    raise exception 'o cadastro completo aceitou uma categoria inválida';
+  exception
+    when check_violation then null;
+  end;
+
+  if exists (
+    select 1 from public.clients where cnpj = '99999999999999'
+  ) then
+    raise exception 'uma falha no cadastro completo deixou dados parciais';
+  end if;
+
+  begin
+    perform public.register_complete_client_structure(
+      'Cliente com datas inválidas',
+      '77777777777777',
+      'Unidade com datas inválidas',
+      null,
+      'America/Fortaleza',
+      'Câmara com datas inválidas',
+      'outros',
+      'Gerador com datas inválidas',
+      '2025-02-01',
+      'Controlador com datas inválidas',
+      '2025-01-31'
+    );
+
+    raise exception 'o controlador começou antes da alocação do gerador';
+  exception
+    when check_violation then null;
+  end;
+
+  if exists (
+    select 1 from public.clients where cnpj = '77777777777777'
+  ) then
+    raise exception 'a validação de datas deixou dados parciais';
+  end if;
+end
+$$;
+
 reset role;
 set local role authenticated;
 set local request.jwt.claim.sub = '62000000-0000-0000-0000-000000000002';
@@ -160,6 +268,26 @@ begin
     );
 
     raise exception 'um usuário de cliente cadastrou gerador';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    perform public.register_complete_client_structure(
+      'Cliente indevido',
+      '88888888888888',
+      'Unidade indevida',
+      null,
+      'America/Fortaleza',
+      'Câmara indevida',
+      'outros',
+      'Gerador indevido',
+      '2026-04-01',
+      'Controlador indevido',
+      '2026-04-01'
+    );
+
+    raise exception 'um usuário de cliente executou o cadastro completo';
   exception
     when insufficient_privilege then null;
   end;
@@ -284,6 +412,22 @@ begin
     'execute'
   ) then
     raise exception 'authenticated não alcança a função protegida por RLS';
+  end if;
+
+  if has_function_privilege(
+    'anon',
+    'public.register_complete_client_structure(text,text,text,text,text,text,text,text,date,text,date)',
+    'execute'
+  ) then
+    raise exception 'anon recebeu acesso ao cadastro completo';
+  end if;
+
+  if not has_function_privilege(
+    'authenticated',
+    'public.register_complete_client_structure(text,text,text,text,text,text,text,text,date,text,date)',
+    'execute'
+  ) then
+    raise exception 'authenticated não alcança o cadastro completo protegido por RLS';
   end if;
 
   if has_table_privilege('authenticated', 'public.clients', 'delete') then

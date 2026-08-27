@@ -123,6 +123,10 @@ export default async function AdminPage() {
             </div>
           </div>
           <nav aria-label="Atalhos dos cadastros operacionais">
+            <Link className="quick-access-featured" href="/admin/clientes/novo">
+              <strong>Cadastro completo</strong>
+              <small>Cliente até controlador em uma etapa</small>
+            </Link>
             <Link href="/admin/clientes">Clientes</Link>
             <Link href="/admin/locais">Unidades</Link>
             <Link href="/admin/camaras">Câmaras</Link>
