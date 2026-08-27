@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <section className="auth-card" aria-labelledby="login-title">
       <div className="auth-heading">
-        <p className="eyebrow">Ortusolis Monitor</p>
+        <p className="eyebrow">Monitoramento operacional</p>
         <h1 id="login-title">Acesse sua conta</h1>
         <p>Consulte os registros vinculados ao seu acesso.</p>
       </div>

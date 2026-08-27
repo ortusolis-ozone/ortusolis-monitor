@@ -9,7 +9,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div className="app-shell" data-layout="admin">
-      <AppHeader area="Administração" userName={profile.fullName} />
+      <AppHeader
+        area="Administração"
+        homeHref="/admin"
+        userName={profile.fullName}
+      />
       <AdminNavigation />
       {children}
     </div>

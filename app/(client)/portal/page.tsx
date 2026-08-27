@@ -460,7 +460,11 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
 
   return (
     <main className="app-shell client-portal-shell">
-      <AppHeader area="Portal do cliente" userName={profile.fullName} />
+      <AppHeader
+        area="Portal do cliente"
+        homeHref="/portal"
+        userName={profile.fullName}
+      />
 
       <div className="client-portal-main">
         <section className="client-portal-hero">
