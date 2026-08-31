@@ -20,6 +20,16 @@ function assertData<T>(
   return data;
 }
 
+function controllerRole(value: string): "state" | "power_telemetry" {
+  if (value === "state" || value === "power_telemetry") return value;
+  throw new Error("O papel de um controlador está inválido.");
+}
+
+function importDataKind(value: string): "state_events" | "power_readings" {
+  if (value === "state_events" || value === "power_readings") return value;
+  throw new Error("O tipo de uma importação está inválido.");
+}
+
 export async function getImportPageData(): Promise<{
   profileId: string;
   options: ImportFormOptions;
@@ -59,7 +69,7 @@ export async function getImportPageData(): Promise<{
       .is("valid_until", null),
     supabase
       .from("controllers")
-      .select("id, client_id, generator_id, identifier, is_active")
+      .select("id, client_id, generator_id, identifier, role, is_active")
       .order("identifier"),
     supabase
       .from("profiles")
@@ -67,7 +77,7 @@ export async function getImportPageData(): Promise<{
     supabase
       .from("import_batches")
       .select(
-        "id, file_name, status, created_at, confirmed_at, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows, error_message, client_id, location_id, cold_room_id, generator_id, controller_id, created_by",
+        "id, data_kind, file_name, status, created_at, confirmed_at, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows, error_message, client_id, location_id, cold_room_id, generator_id, controller_id, created_by",
       )
       .order("created_at", { ascending: false })
       .limit(12),
@@ -167,6 +177,7 @@ export async function getImportPageData(): Promise<{
       clientId: controller.client_id,
       generatorId: controller.generator_id,
       identifier: controller.identifier,
+      role: controllerRole(controller.role),
     }));
   const clientNames = new Map(
     clients.map((client) => [client.id, client.legal_name]),
@@ -233,6 +244,7 @@ export async function getImportPageData(): Promise<{
         controllerNames.get(batch.controller_id) ?? "Controlador indisponível",
       authorName:
         profileNames.get(batch.created_by) ?? "Usuário indisponível",
+      dataKind: importDataKind(batch.data_kind),
     })),
   };
 }

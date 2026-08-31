@@ -28,6 +28,12 @@ function formText(formData: FormData, field: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function formNumber(formData: FormData, field: string) {
+  const normalized = formText(formData, field).replace(",", ".");
+  const value = Number(normalized);
+  return normalized !== "" && Number.isFinite(value) ? value : null;
+}
+
 function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
@@ -109,6 +115,48 @@ function validateId(id: string, field = "id") {
     : fieldError(field, "Seleção inválida.");
 }
 
+function validatePowerControllerConfiguration({
+  role,
+  externalDeviceId,
+  powerOnThresholdW,
+  powerOffThresholdW,
+  correlationToleranceSeconds,
+}: {
+  role: string;
+  externalDeviceId: string;
+  powerOnThresholdW: number | null;
+  powerOffThresholdW: number | null;
+  correlationToleranceSeconds: number | null;
+}): OperationalActionState | null {
+  if (role !== "power_telemetry") return null;
+  if (!externalDeviceId) {
+    return fieldError("external_device_id", "Informe o Device ID.");
+  }
+  if (
+    powerOnThresholdW === null ||
+    powerOffThresholdW === null ||
+    powerOffThresholdW < 0 ||
+    powerOffThresholdW >= powerOnThresholdW
+  ) {
+    return fieldError(
+      "power_on_threshold_w",
+      "O limite ligado deve ser maior que o limite desligado.",
+    );
+  }
+  if (
+    correlationToleranceSeconds === null ||
+    !Number.isInteger(correlationToleranceSeconds) ||
+    correlationToleranceSeconds < 0 ||
+    correlationToleranceSeconds > 86400
+  ) {
+    return fieldError(
+      "correlation_tolerance_seconds",
+      "Informe uma tolerância inteira entre 0 e 86.400 segundos.",
+    );
+  }
+  return null;
+}
+
 async function masterContext() {
   const profile = await requireMaster();
   const supabase = await createClient();
@@ -160,10 +208,31 @@ export async function createCompleteClientStructureAction(
   const coldRoomCategory = formText(formData, "cold_room_category");
   const generatorIdentifier = formText(formData, "generator_identifier");
   const generatorValidFrom = formText(formData, "generator_valid_from");
-  const controllerIdentifier = formText(formData, "controller_identifier");
-  const controllerActivatedOn = formText(
+  const stateControllerIdentifier = formText(
     formData,
-    "controller_activated_on",
+    "state_controller_identifier",
+  );
+  const stateControllerActivatedOn = formText(
+    formData,
+    "state_controller_activated_on",
+  );
+  const powerControllerIdentifier = formText(
+    formData,
+    "power_controller_identifier",
+  );
+  const powerControllerDeviceId = formText(
+    formData,
+    "power_controller_device_id",
+  );
+  const powerControllerActivatedOn = formText(
+    formData,
+    "power_controller_activated_on",
+  );
+  const powerOnThresholdW = formNumber(formData, "power_on_threshold_w");
+  const powerOffThresholdW = formNumber(formData, "power_off_threshold_w");
+  const correlationToleranceSeconds = formNumber(
+    formData,
+    "correlation_tolerance_seconds",
   );
 
   if (!clientLegalName) {
@@ -205,28 +274,74 @@ export async function createCompleteClientStructureAction(
       "Informe uma data inicial válida.",
     );
   }
-  if (!controllerIdentifier) {
+  if (!stateControllerIdentifier) {
     return fieldError(
-      "controller_identifier",
-      "Informe a identificação do controlador.",
+      "state_controller_identifier",
+      "Informe a identificação do controlador de estado.",
     );
   }
-  if (!isValidDate(controllerActivatedOn)) {
+  if (!isValidDate(stateControllerActivatedOn)) {
     return fieldError(
-      "controller_activated_on",
+      "state_controller_activated_on",
       "Informe uma data de ativação válida.",
     );
   }
-  if (controllerActivatedOn < generatorValidFrom) {
+  if (stateControllerActivatedOn < generatorValidFrom) {
     return fieldError(
-      "controller_activated_on",
+      "state_controller_activated_on",
       "A ativação não pode ser anterior ao início da alocação do gerador.",
+    );
+  }
+  if (!powerControllerIdentifier) {
+    return fieldError(
+      "power_controller_identifier",
+      "Informe a identificação do controlador de potência.",
+    );
+  }
+  if (!powerControllerDeviceId) {
+    return fieldError(
+      "power_controller_device_id",
+      "Informe o Device ID do controlador de potência.",
+    );
+  }
+  if (!isValidDate(powerControllerActivatedOn)) {
+    return fieldError(
+      "power_controller_activated_on",
+      "Informe uma data de ativação válida.",
+    );
+  }
+  if (powerControllerActivatedOn < generatorValidFrom) {
+    return fieldError(
+      "power_controller_activated_on",
+      "A ativação não pode ser anterior ao início da alocação do gerador.",
+    );
+  }
+  if (
+    powerOnThresholdW === null ||
+    powerOffThresholdW === null ||
+    powerOffThresholdW < 0 ||
+    powerOffThresholdW >= powerOnThresholdW
+  ) {
+    return fieldError(
+      "power_on_threshold_w",
+      "O limite de ligado deve ser maior que o limite de desligado.",
+    );
+  }
+  if (
+    correlationToleranceSeconds === null ||
+    !Number.isInteger(correlationToleranceSeconds) ||
+    correlationToleranceSeconds < 0 ||
+    correlationToleranceSeconds > 86400
+  ) {
+    return fieldError(
+      "correlation_tolerance_seconds",
+      "Informe uma tolerância inteira entre 0 e 86.400 segundos.",
     );
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(
-    "register_complete_client_structure",
+    "register_complete_client_structure_v2",
     {
       p_client_legal_name: clientLegalName,
       p_client_cnpj: clientCnpj,
@@ -237,8 +352,14 @@ export async function createCompleteClientStructureAction(
       p_cold_room_category: coldRoomCategory,
       p_generator_identifier: generatorIdentifier,
       p_generator_valid_from: generatorValidFrom,
-      p_controller_identifier: controllerIdentifier,
-      p_controller_activated_on: controllerActivatedOn,
+      p_state_controller_identifier: stateControllerIdentifier,
+      p_state_controller_activated_on: stateControllerActivatedOn,
+      p_power_controller_identifier: powerControllerIdentifier,
+      p_power_controller_device_id: powerControllerDeviceId,
+      p_power_controller_activated_on: powerControllerActivatedOn,
+      p_power_on_threshold_w: powerOnThresholdW,
+      p_power_off_threshold_w: powerOffThresholdW,
+      p_correlation_tolerance_seconds: correlationToleranceSeconds,
     },
   );
 
@@ -525,6 +646,24 @@ export async function createGeneratorAction(
   const coldRoomId = formText(formData, "cold_room_id");
   const identifier = formText(formData, "identifier");
   const validFrom = formText(formData, "valid_from");
+  const stateControllerIdentifier = formText(
+    formData,
+    "state_controller_identifier",
+  );
+  const powerControllerIdentifier = formText(
+    formData,
+    "power_controller_identifier",
+  );
+  const powerControllerDeviceId = formText(
+    formData,
+    "power_controller_device_id",
+  );
+  const powerOnThresholdW = formNumber(formData, "power_on_threshold_w");
+  const powerOffThresholdW = formNumber(formData, "power_off_threshold_w");
+  const correlationToleranceSeconds = formNumber(
+    formData,
+    "correlation_tolerance_seconds",
+  );
   const invalidRoom = validateId(coldRoomId, "cold_room_id");
 
   if (invalidRoom) return invalidRoom;
@@ -533,6 +672,46 @@ export async function createGeneratorAction(
   }
   if (!isValidDate(validFrom)) {
     return fieldError("valid_from", "Informe uma data inicial válida.");
+  }
+  if (!stateControllerIdentifier) {
+    return fieldError(
+      "state_controller_identifier",
+      "Informe o controlador de estado.",
+    );
+  }
+  if (!powerControllerIdentifier) {
+    return fieldError(
+      "power_controller_identifier",
+      "Informe o controlador de potência.",
+    );
+  }
+  if (!powerControllerDeviceId) {
+    return fieldError(
+      "power_controller_device_id",
+      "Informe o Device ID da telemetria.",
+    );
+  }
+  if (
+    powerOnThresholdW === null ||
+    powerOffThresholdW === null ||
+    powerOffThresholdW < 0 ||
+    powerOffThresholdW >= powerOnThresholdW
+  ) {
+    return fieldError(
+      "power_on_threshold_w",
+      "O limite de ligado deve ser maior que o de desligado.",
+    );
+  }
+  if (
+    correlationToleranceSeconds === null ||
+    !Number.isInteger(correlationToleranceSeconds) ||
+    correlationToleranceSeconds < 0 ||
+    correlationToleranceSeconds > 86400
+  ) {
+    return fieldError(
+      "correlation_tolerance_seconds",
+      "Informe uma tolerância inteira entre 0 e 86.400 segundos.",
+    );
   }
 
   const supabase = await createClient();
@@ -546,12 +725,20 @@ export async function createGeneratorAction(
     return fieldError("cold_room_id", "Selecione uma câmara válida.");
   }
 
-  const { error } = await supabase.rpc("register_generator", {
+  const { error } = await supabase.rpc("register_generator_v2", {
     p_client_id: room.client_id,
     p_location_id: room.location_id,
     p_cold_room_id: coldRoomId,
     p_identifier: identifier,
     p_valid_from: validFrom,
+    p_state_controller_identifier: stateControllerIdentifier,
+    p_state_controller_activated_on: validFrom,
+    p_power_controller_identifier: powerControllerIdentifier,
+    p_power_controller_device_id: powerControllerDeviceId,
+    p_power_controller_activated_on: validFrom,
+    p_power_on_threshold_w: powerOnThresholdW,
+    p_power_off_threshold_w: powerOffThresholdW,
+    p_correlation_tolerance_seconds: correlationToleranceSeconds,
   });
 
   return error
@@ -658,6 +845,14 @@ export async function createControllerAction(
   const generatorId = formText(formData, "generator_id");
   const identifier = formText(formData, "identifier");
   const activatedOn = formText(formData, "activated_on");
+  const role = formText(formData, "role");
+  const externalDeviceId = formText(formData, "external_device_id");
+  const powerOnThresholdW = formNumber(formData, "power_on_threshold_w");
+  const powerOffThresholdW = formNumber(formData, "power_off_threshold_w");
+  const correlationToleranceSeconds = formNumber(
+    formData,
+    "correlation_tolerance_seconds",
+  );
   const invalidGenerator = validateId(generatorId, "generator_id");
 
   if (invalidGenerator) return invalidGenerator;
@@ -667,12 +862,34 @@ export async function createControllerAction(
   if (!isValidDate(activatedOn)) {
     return fieldError("activated_on", "Informe uma data de ativação válida.");
   }
+  if (role !== "state" && role !== "power_telemetry") {
+    return fieldError("role", "Selecione um papel válido.");
+  }
+  const invalidPowerConfiguration = validatePowerControllerConfiguration({
+    role,
+    externalDeviceId,
+    powerOnThresholdW,
+    powerOffThresholdW,
+    correlationToleranceSeconds,
+  });
+  if (invalidPowerConfiguration) return invalidPowerConfiguration;
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("register_controller", {
+  const { error } = await supabase.rpc("register_controller_v2", {
     p_generator_id: generatorId,
     p_identifier: identifier,
     p_activated_on: activatedOn,
+    p_role: role,
+    p_external_device_id:
+      role === "power_telemetry" ? externalDeviceId : undefined,
+    p_power_on_threshold_w:
+      role === "power_telemetry" ? (powerOnThresholdW ?? undefined) : undefined,
+    p_power_off_threshold_w:
+      role === "power_telemetry" ? (powerOffThresholdW ?? undefined) : undefined,
+    p_correlation_tolerance_seconds:
+      role === "power_telemetry"
+        ? (correlationToleranceSeconds ?? undefined)
+        : undefined,
   });
 
   return error
@@ -687,17 +904,46 @@ export async function editControllerAction(
   await requireMaster();
   const id = formText(formData, "id");
   const identifier = formText(formData, "identifier");
+  const role = formText(formData, "role");
+  const externalDeviceId = formText(formData, "external_device_id");
+  const powerOnThresholdW = formNumber(formData, "power_on_threshold_w");
+  const powerOffThresholdW = formNumber(formData, "power_off_threshold_w");
+  const correlationToleranceSeconds = formNumber(
+    formData,
+    "correlation_tolerance_seconds",
+  );
   const invalidId = validateId(id);
 
   if (invalidId) return invalidId;
   if (!identifier) {
     return fieldError("identifier", "Informe a identificação do controlador.");
   }
+  if (role !== "state" && role !== "power_telemetry") {
+    return fieldError("role", "O papel do controlador é inválido.");
+  }
+  const invalidPowerConfiguration = validatePowerControllerConfiguration({
+    role,
+    externalDeviceId,
+    powerOnThresholdW,
+    powerOffThresholdW,
+    correlationToleranceSeconds,
+  });
+  if (invalidPowerConfiguration) return invalidPowerConfiguration;
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("controllers")
-    .update({ identifier })
+    .update({
+      identifier,
+      external_device_id:
+        role === "power_telemetry" ? externalDeviceId : null,
+      power_on_threshold_w:
+        role === "power_telemetry" ? powerOnThresholdW : null,
+      power_off_threshold_w:
+        role === "power_telemetry" ? powerOffThresholdW : null,
+      correlation_tolerance_seconds:
+        role === "power_telemetry" ? correlationToleranceSeconds : null,
+    })
     .eq("id", id)
     .select("id")
     .maybeSingle();
@@ -717,6 +963,14 @@ export async function replaceControllerAction(
   const generatorId = formText(formData, "generator_id");
   const identifier = formText(formData, "identifier");
   const activatedOn = formText(formData, "activated_on");
+  const role = formText(formData, "role");
+  const externalDeviceId = formText(formData, "external_device_id");
+  const powerOnThresholdW = formNumber(formData, "power_on_threshold_w");
+  const powerOffThresholdW = formNumber(formData, "power_off_threshold_w");
+  const correlationToleranceSeconds = formNumber(
+    formData,
+    "correlation_tolerance_seconds",
+  );
   const invalidGenerator = validateId(generatorId, "generator_id");
 
   if (invalidGenerator) return invalidGenerator;
@@ -726,12 +980,34 @@ export async function replaceControllerAction(
   if (!isValidDate(activatedOn)) {
     return fieldError("activated_on", "Informe uma data de ativação válida.");
   }
+  if (role !== "state" && role !== "power_telemetry") {
+    return fieldError("role", "O papel do controlador é inválido.");
+  }
+  const invalidPowerConfiguration = validatePowerControllerConfiguration({
+    role,
+    externalDeviceId,
+    powerOnThresholdW,
+    powerOffThresholdW,
+    correlationToleranceSeconds,
+  });
+  if (invalidPowerConfiguration) return invalidPowerConfiguration;
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("replace_controller", {
+  const { error } = await supabase.rpc("replace_controller_v2", {
     p_generator_id: generatorId,
     p_identifier: identifier,
     p_activated_on: activatedOn,
+    p_role: role,
+    p_external_device_id:
+      role === "power_telemetry" ? externalDeviceId : undefined,
+    p_power_on_threshold_w:
+      role === "power_telemetry" ? (powerOnThresholdW ?? undefined) : undefined,
+    p_power_off_threshold_w:
+      role === "power_telemetry" ? (powerOffThresholdW ?? undefined) : undefined,
+    p_correlation_tolerance_seconds:
+      role === "power_telemetry"
+        ? (correlationToleranceSeconds ?? undefined)
+        : undefined,
   });
 
   return error

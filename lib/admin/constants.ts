@@ -13,6 +13,10 @@ export const inconsistencyTypes = [
   { value: "controller_mismatch", label: "Controladores divergentes" },
   { value: "unknown_source", label: "Origem desconhecida" },
   { value: "invalid_sequence", label: "Sequência inválida" },
+  { value: "missing_power_on", label: "Potência ligada ausente" },
+  { value: "missing_power_off", label: "Potência desligada ausente" },
+  { value: "missing_power_both", label: "Potência ligada e desligada ausentes" },
+  { value: "unexpected_power", label: "Potência ligada sem aplicação" },
 ] as const;
 
 export const sourceClassifications = [

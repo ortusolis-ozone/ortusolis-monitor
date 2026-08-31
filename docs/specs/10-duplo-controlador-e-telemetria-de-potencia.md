@@ -1,6 +1,6 @@
 # Spec 10 — Duplo controlador e telemetria de potência
 
-**Status:** aprovada — desenvolvimento não iniciado.
+**Status:** concluída em 31/08/2026.
 
 **Aprovação do produto:** 31/08/2026.
 
@@ -492,6 +492,18 @@ O desenvolvimento só pode começar quando:
 - cliente não recebe dados técnicos;
 - textos deixam explícito o caráter indireto da evidência;
 - documentação e tipos gerados refletem o resultado implementado.
+
+## Evidências de conclusão
+
+- A migration `20260831174610_dual_controller_power_telemetry.sql` adiciona os papéis `state` e `power_telemetry`, vigências independentes, prontidão do gerador, leituras de potência, correlações, inconsistências, RLS, auditoria e contratos versionados sem remover os contratos anteriores.
+- O cadastro guiado e o cadastro individual de gerador criam os dois controladores na mesma transação. Cadastro, edição, substituição e histórico tratam cada papel de forma independente.
+- O importador detecta o formato pelos cabeçalhos, valida o papel e o Device ID, preserva milissegundos e fuso, aceita watts com ponto ou vírgula e mantém prévia, confirmação e idempotência para os dois formatos.
+- O arquivo real de potência fornecido foi validado com 57 leituras, incluindo `71,8 W` às `07:00:32.813` e `0 W` às `07:30:08.064`; a repetição do mesmo arquivo não duplicou registros.
+- O fluxo real de estado foi validado com 30 eventos programados. A correlação controlada do conjunto de referência produziu 27 aplicações e 27 verificações `verified`, sem resultado não verificado.
+- O portal publica apenas `Potência confirmada`, `Verificação necessária`, `Sem cobertura` ou `Sem aplicação concluída`, além do aviso de que a potência é evidência indireta. Watts, horários, Device ID, limites e vínculos técnicos permanecem restritos ao Master por RLS.
+- O cenário ponta a ponta foi verificado em navegador nas visões Master e cliente, em desktop e smartphone: cadastro dos dois controladores, prévia e confirmação dos dois XLSX, idempotência, correlação e publicação qualitativa.
+- A suíte final inclui `supabase db reset`, `supabase test db`, `supabase db lint`, testes unitários do parser, lint da aplicação, verificação de tipos e build de produção.
+- Os tipos TypeScript gerados em `lib/supabase/database.types.ts` refletem o schema concluído.
 
 ## Decisões aprovadas
 

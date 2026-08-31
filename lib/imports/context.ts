@@ -62,7 +62,9 @@ export async function validateImportContext(
         .maybeSingle(),
       supabase
         .from("controllers")
-        .select("id, activated_at, deactivated_at")
+        .select(
+          "id, activated_at, deactivated_at, role, external_device_id, external_device_id_normalized, power_on_threshold_w, power_off_threshold_w",
+        )
         .eq("id", context.controllerId)
         .eq("client_id", context.clientId)
         .eq("generator_id", context.generatorId)
@@ -88,6 +90,13 @@ export async function validateImportContext(
     );
   }
 
+  if (
+    controller.data.role !== "state" &&
+    controller.data.role !== "power_telemetry"
+  ) {
+    throw new Error("O papel do controlador armazenado é inválido.");
+  }
+
   try {
     new Intl.DateTimeFormat("pt-BR", {
       timeZone: location.data.time_zone,
@@ -103,5 +112,10 @@ export async function validateImportContext(
     timeZone: location.data.time_zone,
     controllerActivatedAt: controller.data.activated_at,
     controllerDeactivatedAt: controller.data.deactivated_at,
+    controllerRole: controller.data.role,
+    externalDeviceId: controller.data.external_device_id,
+    externalDeviceIdNormalized: controller.data.external_device_id_normalized,
+    powerOnThresholdW: controller.data.power_on_threshold_w,
+    powerOffThresholdW: controller.data.power_off_threshold_w,
   };
 }

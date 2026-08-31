@@ -6,7 +6,7 @@ import type {
 } from "./constants";
 
 export type AdminInconsistency =
-  Database["public"]["Functions"]["list_admin_inconsistencies"]["Returns"][number];
+  Database["public"]["Functions"]["list_admin_inconsistencies_v2"]["Returns"][number];
 
 export type SourceValue =
   Database["public"]["Functions"]["list_source_values"]["Returns"][number];

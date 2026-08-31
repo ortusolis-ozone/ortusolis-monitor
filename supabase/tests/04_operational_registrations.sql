@@ -1,5 +1,7 @@
 begin;
 
+select extensions.plan(1);
+
 insert into public.clients (id, legal_name, cnpj)
 values
   ('61000000-0000-0000-0000-000000000001', 'Cliente Operacional A', '04252011000110'),
@@ -436,6 +438,7 @@ begin
 end
 $$;
 
-rollback;
+select extensions.pass('spec 04 operational registrations tests passed');
+select * from extensions.finish();
 
-select 'spec 04 operational registrations tests passed' as result;
+rollback;

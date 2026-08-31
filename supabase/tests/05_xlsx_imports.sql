@@ -1,5 +1,7 @@
 begin;
 
+select extensions.plan(1);
+
 insert into public.clients (id, legal_name, cnpj)
 values
   ('71000000-0000-0000-0000-000000000001', 'Cliente Importação A', '04252011000110'),
@@ -374,6 +376,7 @@ end
 $$;
 
 reset role;
-rollback;
+select extensions.pass('spec 05 XLSX import tests passed');
+select * from extensions.finish();
 
-select 'spec 05 XLSX import tests passed' as result;
+rollback;

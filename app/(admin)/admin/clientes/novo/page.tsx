@@ -18,7 +18,8 @@ const registrationSteps = [
   "Unidade",
   "Câmara",
   "Gerador",
-  "Controlador",
+  "Estado",
+  "Potência",
 ];
 
 export default function NewCompleteClientStructurePage() {
@@ -31,7 +32,7 @@ export default function NewCompleteClientStructurePage() {
           <p className="eyebrow">Cadastro guiado</p>
           <h1>Nova estrutura completa</h1>
           <p>
-            Inclua os cinco níveis necessários para importar eventos sem trocar
+            Inclua a hierarquia e os dois papéis de controlador sem trocar
             de tela. Se alguma etapa falhar, nenhum cadastro será gravado.
           </p>
         </div>
@@ -193,21 +194,21 @@ export default function NewCompleteClientStructurePage() {
             <legend>
               <span aria-hidden="true">5</span>
               <span>
-                <strong>Primeiro controlador</strong>
-                <small>Controlador inicialmente vinculado ao gerador.</small>
+                <strong>Estado liga/desliga</strong>
+                <small>Fonte oficial da rotina de aplicações.</small>
               </span>
             </legend>
             <div className="registration-fields">
               <label>
                 Identificação do controlador
-                <input name="controller_identifier" required />
-                <FieldError name="controller_identifier" />
+                <input name="state_controller_identifier" required />
+                <FieldError name="state_controller_identifier" />
               </label>
               <label>
                 Data de ativação
                 <input
                   defaultValue={today}
-                  name="controller_activated_on"
+                  name="state_controller_activated_on"
                   required
                   type="date"
                 />
@@ -215,7 +216,76 @@ export default function NewCompleteClientStructurePage() {
                   Use a primeira data em que este controlador deve aceitar
                   eventos.
                 </small>
-                <FieldError name="controller_activated_on" />
+                <FieldError name="state_controller_activated_on" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="registration-step">
+            <legend>
+              <span aria-hidden="true">6</span>
+              <span>
+                <strong>Telemetria de potência</strong>
+                <small>Evidência indireta de energização do gerador.</small>
+              </span>
+            </legend>
+            <div className="registration-fields">
+              <label>
+                Identificação do controlador
+                <input name="power_controller_identifier" required />
+                <FieldError name="power_controller_identifier" />
+              </label>
+              <label>
+                Device ID
+                <input name="power_controller_device_id" required />
+                <FieldError name="power_controller_device_id" />
+              </label>
+              <label>
+                Data de ativação
+                <input
+                  defaultValue={today}
+                  name="power_controller_activated_on"
+                  required
+                  type="date"
+                />
+                <FieldError name="power_controller_activated_on" />
+              </label>
+              <label>
+                Limite de ligado (W)
+                <input
+                  defaultValue="5"
+                  min="0.001"
+                  name="power_on_threshold_w"
+                  required
+                  step="0.001"
+                  type="number"
+                />
+                <FieldError name="power_on_threshold_w" />
+              </label>
+              <label>
+                Limite de desligado (W)
+                <input
+                  defaultValue="1"
+                  min="0"
+                  name="power_off_threshold_w"
+                  required
+                  step="0.001"
+                  type="number"
+                />
+                <FieldError name="power_off_threshold_w" />
+              </label>
+              <label>
+                Tolerância de correlação (segundos)
+                <input
+                  defaultValue="120"
+                  max="86400"
+                  min="0"
+                  name="correlation_tolerance_seconds"
+                  required
+                  step="1"
+                  type="number"
+                />
+                <FieldError name="correlation_tolerance_seconds" />
               </label>
             </div>
           </fieldset>

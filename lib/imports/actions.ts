@@ -15,6 +15,7 @@ import type {
   ImportConfirmationRequest,
   ImportUploadRequest,
   ParsedImportEvent,
+  ParsedPowerReading,
 } from "./types";
 
 const uploadPathPattern =
@@ -50,6 +51,24 @@ function persistedEvent(event: ParsedImportEvent): Json {
     source_normalized: event.source_normalized,
     source_classification: event.source_classification,
     fingerprint: event.fingerprint,
+  };
+}
+
+function persistedPowerReading(reading: ParsedPowerReading): Json {
+  return {
+    occurred_at: reading.occurred_at,
+    occurred_at_raw: reading.occurred_at_raw,
+    power_w: reading.power_w,
+    power_raw: reading.power_raw,
+    device_name: reading.device_name,
+    device_id: reading.device_id,
+    device_id_normalized: reading.device_id_normalized,
+    event_type: reading.event_type,
+    event_name: reading.event_name,
+    event_detail: reading.event_detail,
+    request_from: reading.request_from,
+    source_detail: reading.source_detail,
+    fingerprint: reading.fingerprint,
   };
 }
 
@@ -139,12 +158,17 @@ export async function previewXlsxImport(
       request,
       profile.id,
     );
+    const parsedRows =
+      parsed.dataKind === "state_events" ? parsed.events : parsed.readings;
     const uniqueFingerprints = [
-      ...new Set(parsed.events.map((event) => event.fingerprint)),
+      ...new Set(parsedRows.map((row) => row.fingerprint)),
     ];
-    const { data, error } = await supabase.rpc("existing_event_fingerprints", {
-      p_fingerprints: uniqueFingerprints,
-    });
+    const { data, error } = await supabase.rpc(
+      parsed.dataKind === "state_events"
+        ? "existing_event_fingerprints"
+        : "existing_power_fingerprints",
+      { p_fingerprints: uniqueFingerprints },
+    );
 
     if (error || !data) {
       throw new Error("Não foi possível comparar os eventos existentes.");
@@ -152,10 +176,10 @@ export async function previewXlsxImport(
 
     const existing = new Set(data.map((item) => item.fingerprint));
     const occurrences = new Map<string, number>();
-    parsed.events.forEach((event) => {
+    parsedRows.forEach((row) => {
       occurrences.set(
-        event.fingerprint,
-        (occurrences.get(event.fingerprint) ?? 0) + 1,
+        row.fingerprint,
+        (occurrences.get(row.fingerprint) ?? 0) + 1,
       );
     });
     const repeatedFileRows = [...occurrences.values()].reduce(
@@ -163,29 +187,62 @@ export async function previewXlsxImport(
       0,
     );
 
+    const previewBase = {
+      fileName: request.fileName,
+      fileSha256: parsed.fileSha256,
+      sheetName: parsed.sheetName,
+      timeZone: context.timeZone,
+      totalRows: parsed.totalRows,
+      existingDuplicateRows: parsedRows.filter((row) =>
+        existing.has(row.fingerprint),
+      ).length,
+      repeatedFileRows,
+      periodStart: parsed.periodStart,
+      periodEnd: parsed.periodEnd,
+    };
+
+    if (parsed.dataKind === "state_events") {
+      return {
+        status: "preview",
+        preview: {
+          ...previewBase,
+          dataKind: parsed.dataKind,
+          unknownSourceRows: parsed.unknownSourceRows,
+          sample: parsed.sample.map((event) => ({
+            rowNumber: event.rowNumber,
+            occurredAt: event.occurred_at,
+            occurredAtRaw: event.occurred_at_raw,
+            operation: event.operation,
+            operationRaw: event.operation_raw,
+            sourceOriginal: event.source_original,
+            sourceClassification: event.source_classification,
+          })),
+        },
+      };
+    }
+
     return {
       status: "preview",
       preview: {
-        fileName: request.fileName,
-        fileSha256: parsed.fileSha256,
-        sheetName: parsed.sheetName,
-        timeZone: context.timeZone,
-        totalRows: parsed.totalRows,
-        existingDuplicateRows: parsed.events.filter((event) =>
-          existing.has(event.fingerprint),
-        ).length,
-        repeatedFileRows,
-        unknownSourceRows: parsed.unknownSourceRows,
-        periodStart: parsed.periodStart,
-        periodEnd: parsed.periodEnd,
-        sample: parsed.sample.map((event) => ({
-          rowNumber: event.rowNumber,
-          occurredAt: event.occurred_at,
-          occurredAtRaw: event.occurred_at_raw,
-          operation: event.operation,
-          operationRaw: event.operation_raw,
-          sourceOriginal: event.source_original,
-          sourceClassification: event.source_classification,
+        ...previewBase,
+        dataKind: parsed.dataKind,
+        deviceName: parsed.deviceName,
+        deviceId: parsed.deviceId,
+        minPowerW: parsed.minPowerW,
+        maxPowerW: parsed.maxPowerW,
+        onRows: parsed.onRows,
+        offRows: parsed.offRows,
+        hysteresisRows: parsed.hysteresisRows,
+        invalidRows: parsed.invalidRows,
+        sample: parsed.sample.map((reading) => ({
+          rowNumber: reading.rowNumber,
+          occurredAt: reading.occurred_at,
+          occurredAtRaw: reading.occurred_at_raw,
+          powerW: reading.power_w,
+          powerRaw: reading.power_raw,
+          electricalState: reading.electrical_state,
+          deviceName: reading.device_name,
+          deviceId: reading.device_id,
         })),
       },
     };
@@ -221,7 +278,7 @@ export async function confirmXlsxImport(
       );
     }
 
-    const rpcArguments = {
+    const rpcContext = {
       p_client_id: request.context.clientId,
       p_location_id: request.context.locationId,
       p_cold_room_id: request.context.coldRoomId,
@@ -229,26 +286,27 @@ export async function confirmXlsxImport(
       p_controller_id: request.context.controllerId,
       p_file_name: request.fileName,
       p_file_sha256: parsed.fileSha256,
-      p_events: parsed.events.map(persistedEvent),
     };
-    const { data, error } = await supabase.rpc(
-      "confirm_xlsx_import",
-      rpcArguments,
-    );
+    const { data, error } =
+      parsed.dataKind === "state_events"
+        ? await supabase.rpc("confirm_xlsx_import", {
+            ...rpcContext,
+            p_events: parsed.events.map(persistedEvent),
+          })
+        : await supabase.rpc("confirm_power_xlsx_import", {
+            ...rpcContext,
+            p_readings: parsed.readings.map(persistedPowerReading),
+          });
 
     if (error || !data || !isConfirmation(data)) {
       const administrativeMessage =
         error?.message ?? "Resposta inválida ao confirmar a importação.";
-      const failedResult = await supabase.rpc("record_failed_xlsx_import", {
-        p_client_id: request.context.clientId,
-        p_location_id: request.context.locationId,
-        p_cold_room_id: request.context.coldRoomId,
-        p_generator_id: request.context.generatorId,
-        p_controller_id: request.context.controllerId,
-        p_file_name: request.fileName,
-        p_file_sha256: parsed.fileSha256,
-        p_error_message: administrativeMessage,
-      });
+      const failedResult = await supabase.rpc(
+        parsed.dataKind === "state_events"
+          ? "record_failed_xlsx_import"
+          : "record_failed_power_xlsx_import",
+        { ...rpcContext, p_error_message: administrativeMessage },
+      );
 
       if (failedResult.error) {
         console.error("Falha ao registrar importação malsucedida", failedResult.error);

@@ -7,33 +7,83 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
+      application_power_verifications: {
+        Row: {
+          application_id: number
+          controller_id: string | null
+          created_at: string
+          generator_id: string
+          power_off_reading_id: number | null
+          power_on_reading_id: number | null
+          source_updated_at: string
+          status: string
+          technical_reason: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: number
+          controller_id?: string | null
+          created_at?: string
+          generator_id: string
+          power_off_reading_id?: number | null
+          power_on_reading_id?: number | null
+          source_updated_at: string
+          status: string
+          technical_reason: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: number
+          controller_id?: string | null
+          created_at?: string
+          generator_id?: string
+          power_off_reading_id?: number | null
+          power_on_reading_id?: number | null
+          source_updated_at?: string
+          status?: string
+          technical_reason?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_power_verifications_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_power_verifications_controller_id_fkey"
+            columns: ["controller_id"]
+            isOneToOne: false
+            referencedRelation: "controllers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_power_verifications_generator_id_fkey"
+            columns: ["generator_id"]
+            isOneToOne: false
+            referencedRelation: "generators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_power_verifications_off_context_fkey"
+            columns: ["power_off_reading_id", "generator_id", "controller_id"]
+            isOneToOne: false
+            referencedRelation: "power_readings"
+            referencedColumns: ["id", "generator_id", "controller_id"]
+          },
+          {
+            foreignKeyName: "application_power_verifications_on_context_fkey"
+            columns: ["power_on_reading_id", "generator_id", "controller_id"]
+            isOneToOne: false
+            referencedRelation: "power_readings"
+            referencedColumns: ["id", "generator_id", "controller_id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           controller_id: string
@@ -134,6 +184,7 @@ export type Database = {
           cold_room_id: string
           generator_id: string
           location_id: string
+          power_evidence_status: string
           status: string
           status_date: string
           updated_at: string
@@ -143,6 +194,7 @@ export type Database = {
           cold_room_id: string
           generator_id: string
           location_id: string
+          power_evidence_status?: string
           status: string
           status_date: string
           updated_at?: string
@@ -152,6 +204,7 @@ export type Database = {
           cold_room_id?: string
           generator_id?: string
           location_id?: string
+          power_evidence_status?: string
           status?: string
           status_date?: string
           updated_at?: string
@@ -252,34 +305,52 @@ export type Database = {
         Row: {
           activated_at: string
           client_id: string
+          correlation_tolerance_seconds: number | null
           created_at: string
           deactivated_at: string | null
+          external_device_id: string | null
+          external_device_id_normalized: string | null
           generator_id: string
           id: string
           identifier: string
           is_active: boolean
+          power_off_threshold_w: number | null
+          power_on_threshold_w: number | null
+          role: string
           updated_at: string
         }
         Insert: {
           activated_at: string
           client_id: string
+          correlation_tolerance_seconds?: number | null
           created_at?: string
           deactivated_at?: string | null
+          external_device_id?: string | null
+          external_device_id_normalized?: string | null
           generator_id: string
           id?: string
           identifier: string
           is_active?: boolean
+          power_off_threshold_w?: number | null
+          power_on_threshold_w?: number | null
+          role?: string
           updated_at?: string
         }
         Update: {
           activated_at?: string
           client_id?: string
+          correlation_tolerance_seconds?: number | null
           created_at?: string
           deactivated_at?: string | null
+          external_device_id?: string | null
+          external_device_id_normalized?: string | null
           generator_id?: string
           id?: string
           identifier?: string
           is_active?: boolean
+          power_off_threshold_w?: number | null
+          power_on_threshold_w?: number | null
+          role?: string
           updated_at?: string
         }
         Relationships: [
@@ -347,6 +418,7 @@ export type Database = {
           id: string
           identifier: string
           is_active: boolean
+          telemetry_status: string
           updated_at: string
         }
         Insert: {
@@ -355,6 +427,7 @@ export type Database = {
           id?: string
           identifier: string
           is_active?: boolean
+          telemetry_status?: string
           updated_at?: string
         }
         Update: {
@@ -363,6 +436,7 @@ export type Database = {
           id?: string
           identifier?: string
           is_active?: boolean
+          telemetry_status?: string
           updated_at?: string
         }
         Relationships: [
@@ -383,6 +457,7 @@ export type Database = {
           controller_id: string
           created_at: string
           created_by: string
+          data_kind: string
           duplicate_rows: number
           error_message: string | null
           file_name: string
@@ -404,6 +479,7 @@ export type Database = {
           controller_id: string
           created_at?: string
           created_by: string
+          data_kind?: string
           duplicate_rows?: number
           error_message?: string | null
           file_name: string
@@ -425,6 +501,7 @@ export type Database = {
           controller_id?: string
           created_at?: string
           created_by?: string
+          data_kind?: string
           duplicate_rows?: number
           error_message?: string | null
           file_name?: string
@@ -479,10 +556,12 @@ export type Database = {
       }
       inconsistencies: {
         Row: {
+          application_id: number | null
           created_at: string
-          event_id: number
+          event_id: number | null
           generator_id: string
           id: number
+          power_reading_id: number | null
           public_date: string
           related_event_id: number | null
           resolved_at: string | null
@@ -493,10 +572,12 @@ export type Database = {
           type: string
         }
         Insert: {
+          application_id?: number | null
           created_at?: string
-          event_id: number
+          event_id?: number | null
           generator_id: string
           id?: never
+          power_reading_id?: number | null
           public_date: string
           related_event_id?: number | null
           resolved_at?: string | null
@@ -507,10 +588,12 @@ export type Database = {
           type: string
         }
         Update: {
+          application_id?: number | null
           created_at?: string
-          event_id?: number
+          event_id?: number | null
           generator_id?: string
           id?: never
+          power_reading_id?: number | null
           public_date?: string
           related_event_id?: number | null
           resolved_at?: string | null
@@ -521,6 +604,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inconsistencies_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inconsistencies_event_generator_fkey"
             columns: ["event_id", "generator_id"]
@@ -534,6 +624,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "generators"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inconsistencies_power_reading_generator_fkey"
+            columns: ["power_reading_id", "generator_id"]
+            isOneToOne: false
+            referencedRelation: "power_readings"
+            referencedColumns: ["id", "generator_id"]
           },
           {
             foreignKeyName: "inconsistencies_related_event_generator_fkey"
@@ -589,6 +686,107 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      power_readings: {
+        Row: {
+          client_id: string
+          cold_room_id: string
+          controller_id: string
+          created_at: string
+          device_id: string
+          device_id_normalized: string
+          device_name: string
+          event_detail: string
+          event_name: string
+          event_type: string
+          fingerprint: string
+          generator_id: string
+          id: number
+          import_batch_id: string
+          location_id: string
+          occurred_at: string
+          occurred_at_raw: string
+          power_raw: string
+          power_w: number
+          request_from: string
+          source_detail: string
+        }
+        Insert: {
+          client_id: string
+          cold_room_id: string
+          controller_id: string
+          created_at?: string
+          device_id: string
+          device_id_normalized: string
+          device_name: string
+          event_detail: string
+          event_name: string
+          event_type: string
+          fingerprint: string
+          generator_id: string
+          id?: never
+          import_batch_id: string
+          location_id: string
+          occurred_at: string
+          occurred_at_raw: string
+          power_raw: string
+          power_w: number
+          request_from?: string
+          source_detail?: string
+        }
+        Update: {
+          client_id?: string
+          cold_room_id?: string
+          controller_id?: string
+          created_at?: string
+          device_id?: string
+          device_id_normalized?: string
+          device_name?: string
+          event_detail?: string
+          event_name?: string
+          event_type?: string
+          fingerprint?: string
+          generator_id?: string
+          id?: never
+          import_batch_id?: string
+          location_id?: string
+          occurred_at?: string
+          occurred_at_raw?: string
+          power_raw?: string
+          power_w?: number
+          request_from?: string
+          source_detail?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "power_readings_batch_context_fkey"
+            columns: ["import_batch_id", "generator_id", "controller_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id", "generator_id", "controller_id"]
+          },
+          {
+            foreignKeyName: "power_readings_cold_room_context_fkey"
+            columns: ["cold_room_id", "client_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "cold_rooms"
+            referencedColumns: ["id", "client_id", "location_id"]
+          },
+          {
+            foreignKeyName: "power_readings_controller_context_fkey"
+            columns: ["controller_id", "client_id", "generator_id"]
+            isOneToOne: false
+            referencedRelation: "controllers"
+            referencedColumns: ["id", "client_id", "generator_id"]
+          },
+          {
+            foreignKeyName: "power_readings_generator_context_fkey"
+            columns: ["generator_id", "client_id"]
+            isOneToOne: false
+            referencedRelation: "generators"
+            referencedColumns: ["id", "client_id"]
           },
         ]
       }
@@ -729,6 +927,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_power_xlsx_import: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_controller_id: string
+          p_file_name: string
+          p_file_sha256: string
+          p_generator_id: string
+          p_location_id: string
+          p_readings: Json
+        }
+        Returns: Json
+      }
       confirm_xlsx_import: {
         Args: {
           p_client_id: string
@@ -747,6 +958,12 @@ export type Database = {
         Returns: undefined
       }
       existing_event_fingerprints: {
+        Args: { p_fingerprints: string[] }
+        Returns: {
+          fingerprint: string
+        }[]
+      }
+      existing_power_fingerprints: {
         Args: { p_fingerprints: string[] }
         Returns: {
           fingerprint: string
@@ -793,6 +1010,59 @@ export type Database = {
           type: string
         }[]
       }
+      list_admin_inconsistencies_v2: {
+        Args: {
+          p_client_id?: string
+          p_end_date?: string
+          p_generator_id?: string
+          p_location_id?: string
+          p_start_date?: string
+          p_status?: string
+          p_type?: string
+        }
+        Returns: {
+          client_id: string
+          client_name: string
+          correlated_power_off_at: string
+          correlated_power_off_w: number
+          correlated_power_on_at: string
+          correlated_power_on_w: number
+          created_at: string
+          event_controller_identifier: string
+          event_id: number
+          event_occurred_at: string
+          event_operation: string
+          event_source_classification: string
+          event_source_normalized: string
+          event_source_original: string
+          generator_id: string
+          generator_identifier: string
+          id: number
+          location_id: string
+          location_name: string
+          power_controller_identifier: string
+          power_device_id: string
+          power_device_name: string
+          power_occurred_at: string
+          power_reading_id: number
+          power_w: number
+          public_date: string
+          related_event_controller_identifier: string
+          related_event_id: number
+          related_event_occurred_at: string
+          related_event_operation: string
+          related_event_source_classification: string
+          related_event_source_original: string
+          review_note: string
+          reviewed_at: string
+          reviewed_by: string
+          reviewed_by_name: string
+          status: string
+          type: string
+          verification_reason: string
+          verification_status: string
+        }[]
+      }
       list_source_values: {
         Args: never
         Returns: {
@@ -816,6 +1086,19 @@ export type Database = {
           p_location_id: string
         }
         Returns: number
+      }
+      record_failed_power_xlsx_import: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_controller_id: string
+          p_error_message: string
+          p_file_name: string
+          p_file_sha256: string
+          p_generator_id: string
+          p_location_id: string
+        }
+        Returns: string
       }
       record_failed_xlsx_import: {
         Args: {
@@ -846,11 +1129,46 @@ export type Database = {
         }
         Returns: Json
       }
+      register_complete_client_structure_v2: {
+        Args: {
+          p_client_cnpj: string
+          p_client_legal_name: string
+          p_cold_room_category: string
+          p_cold_room_name: string
+          p_correlation_tolerance_seconds?: number
+          p_generator_identifier: string
+          p_generator_valid_from: string
+          p_location_description: string
+          p_location_name: string
+          p_location_time_zone: string
+          p_power_controller_activated_on: string
+          p_power_controller_device_id: string
+          p_power_controller_identifier: string
+          p_power_off_threshold_w?: number
+          p_power_on_threshold_w?: number
+          p_state_controller_activated_on: string
+          p_state_controller_identifier: string
+        }
+        Returns: Json
+      }
       register_controller: {
         Args: {
           p_activated_on: string
           p_generator_id: string
           p_identifier: string
+        }
+        Returns: string
+      }
+      register_controller_v2: {
+        Args: {
+          p_activated_on: string
+          p_correlation_tolerance_seconds?: number
+          p_external_device_id?: string
+          p_generator_id: string
+          p_identifier: string
+          p_power_off_threshold_w?: number
+          p_power_on_threshold_w?: number
+          p_role: string
         }
         Returns: string
       }
@@ -860,6 +1178,24 @@ export type Database = {
           p_cold_room_id: string
           p_identifier: string
           p_location_id: string
+          p_valid_from: string
+        }
+        Returns: string
+      }
+      register_generator_v2: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_correlation_tolerance_seconds?: number
+          p_identifier: string
+          p_location_id: string
+          p_power_controller_activated_on: string
+          p_power_controller_device_id: string
+          p_power_controller_identifier: string
+          p_power_off_threshold_w?: number
+          p_power_on_threshold_w?: number
+          p_state_controller_activated_on: string
+          p_state_controller_identifier: string
           p_valid_from: string
         }
         Returns: string
@@ -875,6 +1211,23 @@ export type Database = {
           p_identifier: string
         }
         Returns: string
+      }
+      replace_controller_v2: {
+        Args: {
+          p_activated_on: string
+          p_correlation_tolerance_seconds?: number
+          p_external_device_id?: string
+          p_generator_id: string
+          p_identifier: string
+          p_power_off_threshold_w?: number
+          p_power_on_threshold_w?: number
+          p_role: string
+        }
+        Returns: string
+      }
+      reprocess_generator_telemetry: {
+        Args: { p_generator_id: string }
+        Returns: undefined
       }
       review_inconsistency: {
         Args: { p_inconsistency_id: number; p_review_note?: string }
@@ -1012,9 +1365,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

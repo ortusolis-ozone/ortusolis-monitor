@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import {
   consolidatePortalStatuses,
+  isPowerEvidenceStatus,
   isPortalStatus,
 } from "./constants";
 import type {
@@ -24,6 +25,7 @@ type PortalDailyStatusRow = Pick<
   | "generator_id"
   | "status_date"
   | "status"
+  | "power_evidence_status"
 >;
 
 const PAGE_SIZE = 1000;
@@ -99,7 +101,7 @@ async function getDailyStatusRows(
     let query = supabase
       .from("client_daily_status")
       .select(
-        "location_id, cold_room_id, generator_id, status_date, status",
+        "location_id, cold_room_id, generator_id, status_date, status, power_evidence_status",
       )
       .eq("client_id", clientId)
       .gte("status_date", filters.startDate)
@@ -155,7 +157,7 @@ async function getVerificationStatusRows(
     const { data, error } = await supabase
       .from("client_daily_status")
       .select(
-        "location_id, cold_room_id, generator_id, status_date, status",
+        "location_id, cold_room_id, generator_id, status_date, status, power_evidence_status",
       )
       .eq("client_id", clientId)
       .eq("status", "verification_required")
@@ -223,7 +225,10 @@ function buildOverview(
   }
 
   for (const row of statusRows) {
-    if (!isPortalStatus(row.status)) continue;
+    if (
+      !isPortalStatus(row.status) ||
+      !isPowerEvidenceStatus(row.power_evidence_status)
+    ) continue;
 
     const location = overviewByLocation.get(row.location_id);
     const room = location?.coldRoomsById.get(row.cold_room_id);
@@ -236,6 +241,7 @@ function buildOverview(
       id: row.generator_id,
       identifier,
       status: row.status,
+      powerEvidenceStatus: row.power_evidence_status,
     });
   }
 
@@ -413,7 +419,10 @@ export async function getPortalPageData(
     ...overviewData,
     verificationItems,
     history: historyStatusRows.flatMap((row) => {
-      if (!isPortalStatus(row.status)) return [];
+      if (
+        !isPortalStatus(row.status) ||
+        !isPowerEvidenceStatus(row.power_evidence_status)
+      ) return [];
 
       return [
         {
@@ -428,6 +437,7 @@ export async function getPortalPageData(
           generatorIdentifier:
             generatorNames.get(row.generator_id) ?? "Gerador indisponível",
           status: row.status,
+          powerEvidenceStatus: row.power_evidence_status,
         },
       ];
     }),

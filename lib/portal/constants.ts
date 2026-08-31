@@ -7,6 +7,48 @@ export const portalStatuses = [
 
 export type PortalStatus = (typeof portalStatuses)[number];
 
+export const powerEvidenceStatuses = [
+  "confirmed",
+  "requires_review",
+  "partial",
+  "unavailable",
+  "not_applicable",
+] as const;
+
+export type PowerEvidenceStatus = (typeof powerEvidenceStatuses)[number];
+
+export const powerEvidenceDetails: Record<
+  PowerEvidenceStatus,
+  { label: string; description: string }
+> = {
+  confirmed: {
+    label: "Potência confirmada",
+    description: "A aplicação registrada possui evidência de energização.",
+  },
+  requires_review: {
+    label: "Verificação necessária",
+    description: "Os registros de estado e potência precisam ser conferidos.",
+  },
+  partial: {
+    label: "Evidência parcial",
+    description: "A telemetria está disponível apenas em parte do período.",
+  },
+  unavailable: {
+    label: "Telemetria indisponível",
+    description: "Não havia cobertura de potência compatível no período.",
+  },
+  not_applicable: {
+    label: "Sem aplicação concluída",
+    description: "A evidência de potência não se aplica a este registro.",
+  },
+};
+
+export function isPowerEvidenceStatus(
+  value: string,
+): value is PowerEvidenceStatus {
+  return powerEvidenceStatuses.some((status) => status === value);
+}
+
 export const portalStatusDetails: Record<
   PortalStatus,
   { label: string; description: string }

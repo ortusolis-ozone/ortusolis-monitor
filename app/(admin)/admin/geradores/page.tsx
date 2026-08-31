@@ -51,8 +51,8 @@ export default async function GeneratorsPage({
           <p className="eyebrow">Quarto nível</p>
           <h1>Geradores e alocações</h1>
           <p>
-            Todo gerador nasce alocado; uma realocação encerra a vigência atual
-            e abre a próxima na mesma transação.
+            Todo novo gerador nasce alocado e com os controladores de estado e
+            potência criados na mesma transação.
           </p>
         </div>
 
@@ -90,6 +90,36 @@ export default async function GeneratorsPage({
               />
               <FieldError name="valid_from" />
             </label>
+            <label>
+              Controlador de estado
+              <input name="state_controller_identifier" required />
+              <FieldError name="state_controller_identifier" />
+            </label>
+            <label>
+              Controlador de potência
+              <input name="power_controller_identifier" required />
+              <FieldError name="power_controller_identifier" />
+            </label>
+            <label>
+              Device ID da potência
+              <input name="power_controller_device_id" required />
+              <FieldError name="power_controller_device_id" />
+            </label>
+            <label>
+              Limite ligado (W)
+              <input defaultValue="5" min="0.001" name="power_on_threshold_w" required step="0.001" type="number" />
+              <FieldError name="power_on_threshold_w" />
+            </label>
+            <label>
+              Limite desligado (W)
+              <input defaultValue="1" min="0" name="power_off_threshold_w" required step="0.001" type="number" />
+              <FieldError name="power_off_threshold_w" />
+            </label>
+            <label>
+              Tolerância (segundos)
+              <input defaultValue="120" max="86400" min="0" name="correlation_tolerance_seconds" required step="1" type="number" />
+              <FieldError name="correlation_tolerance_seconds" />
+            </label>
           </OperationalForm>
         </details>
       </section>
@@ -105,6 +135,7 @@ export default async function GeneratorsPage({
                 <th>Cliente</th>
                 <th>Alocação atual</th>
                 <th>Desde</th>
+                <th>Telemetria</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
@@ -144,6 +175,13 @@ export default async function GeneratorsPage({
                       {formatOperationalDate(
                         generator.currentAssignment?.valid_from ?? null,
                       )}
+                    </td>
+                    <td>
+                      <span className={`import-status ${generator.telemetry_status === "ready" ? "confirmed" : "processing"}`}>
+                        {generator.telemetry_status === "ready"
+                          ? "Pronto"
+                          : "Telemetria pendente"}
+                      </span>
                     </td>
                     <td>
                       <StatusBadge isActive={generator.is_active} />

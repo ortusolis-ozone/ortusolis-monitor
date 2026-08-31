@@ -35,6 +35,11 @@ function assertCount(
   return count;
 }
 
+function importDataKind(value: string): "state_events" | "power_readings" {
+  if (value === "state_events" || value === "power_readings") return value;
+  throw new Error("O tipo de uma importação está inválido.");
+}
+
 export async function getAdminOverview(): Promise<AdminOverviewData> {
   await requireMaster();
   const supabase = await createClient();
@@ -65,7 +70,7 @@ export async function getAdminOverview(): Promise<AdminOverviewData> {
     supabase
       .from("import_batches")
       .select(
-        "id, file_name, status, created_at, confirmed_at, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows, error_message, client_id, location_id, cold_room_id, generator_id, controller_id, created_by",
+        "id, data_kind, file_name, status, created_at, confirmed_at, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows, error_message, client_id, location_id, cold_room_id, generator_id, controller_id, created_by",
       )
       .order("created_at", { ascending: false })
       .limit(5),
@@ -154,6 +159,7 @@ export async function getAdminOverview(): Promise<AdminOverviewData> {
       controllerNames.get(batch.controller_id) ?? "Controlador indisponível",
     authorName:
       profileNames.get(batch.created_by) ?? "Usuário indisponível",
+    dataKind: importDataKind(batch.data_kind),
   }));
 
   return {
@@ -196,7 +202,7 @@ export async function getInconsistencyPageData(
     locationsResponse,
     generatorsResponse,
   ] = await Promise.all([
-    supabase.rpc("list_admin_inconsistencies", rpcArguments),
+    supabase.rpc("list_admin_inconsistencies_v2", rpcArguments),
     supabase.from("clients").select("id, legal_name").order("legal_name"),
     supabase
       .from("locations")

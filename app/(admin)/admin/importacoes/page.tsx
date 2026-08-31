@@ -8,10 +8,10 @@ export default async function ImportsPage() {
     <main className="admin-main">
       <section className="page-heading">
         <p className="eyebrow">Importação operacional</p>
-        <h1>Eventos do eWeLink</h1>
+        <h1>Estado e telemetria do eWeLink</h1>
         <p>
           Valide o arquivo no contexto correto, revise a prévia e confirme sem
-          criar eventos duplicados.
+          duplicar eventos de estado ou leituras de potência.
         </p>
       </section>
 

@@ -1,5 +1,7 @@
 begin;
 
+select extensions.plan(1);
+
 insert into public.clients (id, legal_name, cnpj, is_active)
 values
   ('91000000-0000-4000-8000-000000000001', 'Cliente Admin A', '77777777777777', true),
@@ -383,6 +385,7 @@ begin
 end
 $$;
 
-rollback;
+select extensions.pass('spec 07 admin dashboard tests passed');
+select * from extensions.finish();
 
-select 'spec 07 admin dashboard tests passed' as result;
+rollback;

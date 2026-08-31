@@ -75,7 +75,8 @@ begin
     'generator_id',
     'status_date',
     'status',
-    'updated_at'
+    'updated_at',
+    'power_evidence_status'
   ] then
     raise exception 'a publicação diária expõe colunas inesperadas: %', public_status_columns;
   end if;

@@ -1,5 +1,7 @@
 begin;
 
+select extensions.plan(1);
+
 insert into public.clients (id, legal_name, cnpj, is_active)
 values
   ('10000000-0000-0000-0000-000000000001', 'Cliente RLS A', '33333333333333', true),
@@ -170,6 +172,7 @@ end
 $$;
 
 reset role;
-rollback;
+select extensions.pass('spec 03 auth and RLS tests passed');
+select * from extensions.finish();
 
-select 'spec 03 auth and RLS tests passed' as result;
+rollback;

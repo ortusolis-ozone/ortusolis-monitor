@@ -40,14 +40,6 @@ export default async function ControllersPage({
   const clientNames = new Map(
     options.clients.map((client) => [client.id, client.legal_name]),
   );
-  const generatorsWithoutController = options.generators.filter(
-    (generator) =>
-      !options.controllers.some(
-        (controller) =>
-          controller.generator_id === generator.id &&
-          controller.deactivated_at === null,
-      ),
-  );
   const today = todayInFortaleza();
 
   return (
@@ -57,8 +49,8 @@ export default async function ControllersPage({
           <p className="eyebrow">Quinto nível</p>
           <h1>Controladores</h1>
           <p>
-            Cadastre o primeiro controlador ou substitua o atual informando a
-            data em que o novo período começa.
+            Estado e potência possuem vigências independentes. Cadastre o papel
+            ausente ou substitua apenas o controlador correspondente.
           </p>
         </div>
 
@@ -69,10 +61,10 @@ export default async function ControllersPage({
             submitLabel="Cadastrar controlador"
           >
             <label>
-              Gerador sem controlador ativo
+              Gerador
               <select name="generator_id" required>
                 <option value="">Selecione</option>
-                {generatorsWithoutController.map((generator) => (
+                {options.generators.map((generator) => (
                   <option key={generator.id} value={generator.id}>
                     {clientNames.get(generator.client_id)} —{" "}
                     {generator.identifier}
@@ -80,6 +72,14 @@ export default async function ControllersPage({
                 ))}
               </select>
               <FieldError name="generator_id" />
+            </label>
+            <label>
+              Papel
+              <select name="role" required>
+                <option value="state">Estado liga/desliga</option>
+                <option value="power_telemetry">Telemetria de potência</option>
+              </select>
+              <FieldError name="role" />
             </label>
             <label>
               Identificação
@@ -96,6 +96,26 @@ export default async function ControllersPage({
               />
               <FieldError name="activated_on" />
             </label>
+            <label>
+              Device ID (somente potência)
+              <input name="external_device_id" />
+              <FieldError name="external_device_id" />
+            </label>
+            <label>
+              Limite ligado (W)
+              <input defaultValue="5" min="0.001" name="power_on_threshold_w" step="0.001" type="number" />
+              <FieldError name="power_on_threshold_w" />
+            </label>
+            <label>
+              Limite desligado (W)
+              <input defaultValue="1" min="0" name="power_off_threshold_w" step="0.001" type="number" />
+              <FieldError name="power_off_threshold_w" />
+            </label>
+            <label>
+              Tolerância (segundos)
+              <input defaultValue="120" max="86400" min="0" name="correlation_tolerance_seconds" step="1" type="number" />
+              <FieldError name="correlation_tolerance_seconds" />
+            </label>
           </OperationalForm>
         </details>
       </section>
@@ -108,10 +128,12 @@ export default async function ControllersPage({
             <thead>
               <tr>
                 <th>Controlador</th>
+                <th>Papel</th>
                 <th>Gerador</th>
                 <th>Cliente</th>
                 <th>Ativação</th>
                 <th>Desativação</th>
+                <th>Configuração</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
@@ -121,6 +143,7 @@ export default async function ControllersPage({
                 const hasOtherActiveController = options.controllers.some(
                   (other) =>
                     other.generator_id === controller.generator_id &&
+                    other.role === controller.role &&
                     other.id !== controller.id &&
                     other.deactivated_at === null,
                 );
@@ -128,10 +151,27 @@ export default async function ControllersPage({
                 return (
                   <tr key={controller.id}>
                     <td>{controller.identifier}</td>
+                    <td>
+                      {controller.role === "state"
+                        ? "Estado liga/desliga"
+                        : "Telemetria de potência"}
+                    </td>
                     <td>{controller.generatorName}</td>
                     <td>{controller.clientName}</td>
                     <td>{formatOperationalDate(controller.activated_at)}</td>
                     <td>{formatOperationalDate(controller.deactivated_at)}</td>
+                    <td>
+                      {controller.role === "power_telemetry" ? (
+                        <span>
+                          Device ID: {controller.external_device_id}
+                          <small className="table-secondary-line">
+                            ≥ {controller.power_on_threshold_w} W · ≤ {controller.power_off_threshold_w} W · ±{controller.correlation_tolerance_seconds}s
+                          </small>
+                        </span>
+                      ) : (
+                        "Rotina liga/desliga"
+                      )}
+                    </td>
                     <td>
                       <StatusBadge isActive={controller.is_active} />
                     </td>
@@ -149,6 +189,7 @@ export default async function ControllersPage({
                               type="hidden"
                               value={controller.id}
                             />
+                            <input name="role" type="hidden" value={controller.role} />
                             <label>
                               Identificação
                               <input
@@ -158,6 +199,27 @@ export default async function ControllersPage({
                               />
                               <FieldError name="identifier" />
                             </label>
+                            {controller.role === "power_telemetry" ? (
+                              <>
+                                <label>
+                                  Device ID
+                                  <input defaultValue={controller.external_device_id ?? ""} name="external_device_id" required />
+                                  <FieldError name="external_device_id" />
+                                </label>
+                                <label>
+                                  Limite ligado (W)
+                                  <input defaultValue={controller.power_on_threshold_w ?? 5} min="0.001" name="power_on_threshold_w" required step="0.001" type="number" />
+                                </label>
+                                <label>
+                                  Limite desligado (W)
+                                  <input defaultValue={controller.power_off_threshold_w ?? 1} min="0" name="power_off_threshold_w" required step="0.001" type="number" />
+                                </label>
+                                <label>
+                                  Tolerância (segundos)
+                                  <input defaultValue={controller.correlation_tolerance_seconds ?? 120} max="86400" min="0" name="correlation_tolerance_seconds" required step="1" type="number" />
+                                </label>
+                              </>
+                            ) : null}
                           </OperationalForm>
                         </details>
 
@@ -176,6 +238,7 @@ export default async function ControllersPage({
                                   type="hidden"
                                   value={controller.generator_id}
                                 />
+                                <input name="role" type="hidden" value={controller.role} />
                                 <label>
                                   Identificação do novo controlador
                                   <input name="identifier" required />
@@ -191,6 +254,27 @@ export default async function ControllersPage({
                                   />
                                   <FieldError name="activated_on" />
                                 </label>
+                                {controller.role === "power_telemetry" ? (
+                                  <>
+                                    <label>
+                                      Device ID do novo controlador
+                                      <input name="external_device_id" required />
+                                      <FieldError name="external_device_id" />
+                                    </label>
+                                    <label>
+                                      Limite ligado (W)
+                                      <input defaultValue={controller.power_on_threshold_w ?? 5} min="0.001" name="power_on_threshold_w" required step="0.001" type="number" />
+                                    </label>
+                                    <label>
+                                      Limite desligado (W)
+                                      <input defaultValue={controller.power_off_threshold_w ?? 1} min="0" name="power_off_threshold_w" required step="0.001" type="number" />
+                                    </label>
+                                    <label>
+                                      Tolerância (segundos)
+                                      <input defaultValue={controller.correlation_tolerance_seconds ?? 120} max="86400" min="0" name="correlation_tolerance_seconds" required step="1" type="number" />
+                                    </label>
+                                  </>
+                                ) : null}
                               </OperationalForm>
                             </details>
                             <details className="row-details">

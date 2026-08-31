@@ -1,5 +1,7 @@
 begin;
 
+select extensions.plan(1);
+
 insert into public.clients (id, legal_name, cnpj)
 values ('81000000-0000-0000-0000-000000000001', 'Cliente Processamento', '19131243000197');
 
@@ -583,7 +585,8 @@ begin
     'generator_id',
     'status_date',
     'status',
-    'updated_at'
+    'updated_at',
+    'power_evidence_status'
   ]::text[] then
     raise exception 'a publicação diária expõe dados técnicos';
   end if;
@@ -608,6 +611,7 @@ begin
 end
 $$;
 
-rollback;
+select extensions.pass('spec 06 processing and daily states tests passed');
+select * from extensions.finish();
 
-select 'spec 06 processing and daily states tests passed' as result;
+rollback;

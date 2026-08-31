@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/app-header";
 import { PublicStatusBadge } from "@/components/public-status-badge";
 import { requireClientProfile } from "@/lib/auth/profile";
 import {
+  powerEvidenceDetails,
   portalStatuses,
   portalStatusDetails,
 } from "@/lib/portal/constants";
@@ -93,6 +94,15 @@ function historyHref(
 
 function EmptyPublicStatus() {
   return <span className="public-status-empty">Sem registros publicados</span>;
+}
+
+function PowerEvidence({ status }: { status: PortalHistoryItem["powerEvidenceStatus"] }) {
+  return (
+    <span className={`power-evidence ${status}`}>
+      <strong>{powerEvidenceDetails[status].label}</strong>
+      <small>{powerEvidenceDetails[status].description}</small>
+    </span>
+  );
 }
 
 function StatusLegend() {
@@ -192,6 +202,7 @@ function GeneratorRow({
         <strong>{generator.identifier}</strong>
       </div>
       <div className="portal-node-actions">
+        <PowerEvidence status={generator.powerEvidenceStatus} />
         <PublicStatusBadge compact status={generator.status} />
         <Link
           href={historyHref(filters, {
@@ -386,6 +397,7 @@ function HistoryTable({ history }: { history: PortalHistoryItem[] }) {
             <th>Câmara</th>
             <th>Gerador</th>
             <th>Estado</th>
+            <th>Evidência de potência</th>
           </tr>
         </thead>
         <tbody>
@@ -400,6 +412,9 @@ function HistoryTable({ history }: { history: PortalHistoryItem[] }) {
                 <span className="portal-history-description">
                   {portalStatusDetails[item.status].description}
                 </span>
+              </td>
+              <td data-label="Evidência de potência">
+                <PowerEvidence status={item.powerEvidenceStatus} />
               </td>
             </tr>
           ))}
@@ -557,6 +572,11 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
           </div>
 
           <HistoryFilters filters={data.filters} options={data.options} />
+
+          <p className="portal-section-description">
+            A potência registrada é uma evidência indireta de energização do
+            gerador e não mede a concentração ou a produção de ozônio.
+          </p>
 
           {data.filters.dateRangeWasAdjusted ? (
             <p className="portal-filter-notice" role="status">

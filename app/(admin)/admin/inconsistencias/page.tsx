@@ -122,6 +122,66 @@ function TechnicalEvent({
   );
 }
 
+function TechnicalPower({ item }: { item: AdminInconsistency }) {
+  if (!item.power_reading_id && !item.verification_status) return null;
+
+  return (
+    <div className="technical-event">
+      <h3>Telemetria de potência</h3>
+      <dl>
+        <div>
+          <dt>Leitura observada</dt>
+          <dd>
+            {item.power_w === null
+              ? "—"
+              : `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(item.power_w)} W`}
+          </dd>
+        </div>
+        <div>
+          <dt>Horário</dt>
+          <dd>{formatAdminDateTime(item.power_occurred_at)}</dd>
+        </div>
+        <div>
+          <dt>Dispositivo</dt>
+          <dd>{item.power_device_name ?? "—"} · {item.power_device_id ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>Controlador</dt>
+          <dd>{item.power_controller_identifier ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>Correlação</dt>
+          <dd>{item.verification_status ?? "Transição sem aplicação compatível"}</dd>
+        </div>
+        <div>
+          <dt>Motivo técnico</dt>
+          <dd>{item.verification_reason ?? "unexpected_power"}</dd>
+        </div>
+        <div>
+          <dt>Evidência ligada</dt>
+          <dd>
+            {item.correlated_power_on_w === null
+              ? "—"
+              : `${item.correlated_power_on_w} W em ${formatAdminDateTime(item.correlated_power_on_at)}`}
+          </dd>
+        </div>
+        <div>
+          <dt>Evidência desligada</dt>
+          <dd>
+            {item.correlated_power_off_w === null
+              ? "—"
+              : `${item.correlated_power_off_w} W em ${formatAdminDateTime(item.correlated_power_off_at)}`}
+          </dd>
+        </div>
+      </dl>
+      <p>
+        Potência é evidência de energização; não comprova produção ou
+        concentração de ozônio.
+      </p>
+    </div>
+  );
+}
+
 function InconsistencyCard({ item }: { item: AdminInconsistency }) {
   return (
     <article className="inconsistency-card">
@@ -159,6 +219,7 @@ function InconsistencyCard({ item }: { item: AdminInconsistency }) {
           sourceOriginal={item.related_event_source_original}
           title="Evento relacionado"
         />
+        <TechnicalPower item={item} />
       </div>
 
       {item.status === "pending" ? (

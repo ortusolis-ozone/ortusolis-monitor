@@ -1,5 +1,7 @@
 begin;
 
+select extensions.plan(1);
+
 do $$
 declare
   client_a uuid := gen_random_uuid();
@@ -237,6 +239,7 @@ $$;
 do $$
 declare
   expected_tables constant text[] := array[
+    'application_power_verifications',
     'applications',
     'audit_logs',
     'client_daily_status',
@@ -248,6 +251,7 @@ declare
     'import_batches',
     'inconsistencies',
     'locations',
+    'power_readings',
     'profiles',
     'raw_events',
     'source_mappings'
@@ -297,13 +301,15 @@ begin
     'generator_id',
     'status_date',
     'status',
-    'updated_at'
+    'updated_at',
+    'power_evidence_status'
   ] then
     raise exception 'client_daily_status expõe colunas inesperadas: %', public_status_columns;
   end if;
 end
 $$;
 
-rollback;
+select extensions.pass('spec 02 schema tests passed');
+select * from extensions.finish();
 
-select 'spec 02 schema tests passed' as result;
+rollback;

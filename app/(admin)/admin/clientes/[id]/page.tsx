@@ -114,9 +114,15 @@ export default async function ClientDetailPage({
                               <div>
                                 <h5>{generator.identifier}</h5>
                                 <p>
-                                  {generatorControllers.find(
-                                    (controller) => controller.is_active,
-                                  )?.identifier ?? "Sem controlador ativo"}
+                                  Estado: {generatorControllers.find(
+                                    (controller) =>
+                                      controller.is_active && controller.role === "state",
+                                  )?.identifier ?? "pendente"}
+                                  {" · "}Potência: {generatorControllers.find(
+                                    (controller) =>
+                                      controller.is_active &&
+                                      controller.role === "power_telemetry",
+                                  )?.identifier ?? "pendente"}
                                 </p>
                               </div>
                               <StatusBadge isActive={generator.is_active} />
@@ -154,7 +160,12 @@ export default async function ClientDetailPage({
                                   <strong>Controladores</strong>
                                   {generatorControllers.map((controller) => (
                                     <p key={controller.id}>
-                                      {controller.identifier}: {" "}
+                                      {controller.role === "state"
+                                        ? "Estado liga/desliga"
+                                        : "Telemetria de potência"}: {controller.identifier}
+                                      {controller.role === "power_telemetry"
+                                        ? ` · Device ID ${controller.external_device_id}`
+                                        : ""}: {" "}
                                       {formatOperationalDate(
                                         controller.activated_at,
                                       )}{" "}

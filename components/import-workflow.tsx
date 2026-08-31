@@ -80,6 +80,20 @@ function batchStatusLabel(status: ImportBatchListItem["status"]) {
   return "Processando";
 }
 
+function controllerRoleLabel(role: ImportBatchListItem["dataKind"]) {
+  return role === "state_events" ? "Estado liga/desliga" : "Telemetria de potência";
+}
+
+function electricalStateLabel(state: "on" | "off" | "hysteresis") {
+  if (state === "on") return "Ligada";
+  if (state === "off") return "Desligada";
+  return "Zona de histerese";
+}
+
+function formatPower(power: number) {
+  return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(power)} W`;
+}
+
 export function ImportWorkflow({
   profileId,
   options,
@@ -248,7 +262,7 @@ export function ImportWorkflow({
     if (
       !currentPreview ||
       !window.confirm(
-        `Confirmar a importação de ${currentPreview.totalRows.toLocaleString("pt-BR")} evento(s)?`,
+        `Confirmar a importação de ${currentPreview.totalRows.toLocaleString("pt-BR")} linha(s)?`,
       )
     ) {
       return;
@@ -394,7 +408,9 @@ export function ImportWorkflow({
                 <option value="">Selecione</option>
                 {controllers.map((controller) => (
                   <option key={controller.id} value={controller.id}>
-                    {controller.identifier}
+                    {controller.role === "state"
+                      ? "Estado liga/desliga"
+                      : "Telemetria de potência"} — {controller.identifier}
                   </option>
                 ))}
               </select>
@@ -402,7 +418,7 @@ export function ImportWorkflow({
           </div>
 
           <label className="file-picker">
-            <span>Arquivo eWeLink</span>
+            <span>Arquivo XLSX do controlador</span>
             <input
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               disabled={busy !== null}
@@ -412,7 +428,7 @@ export function ImportWorkflow({
             <small>
               {file
                 ? `${file.name} · ${formatFileSize(file.size)}`
-                : "Cabeçalhos: Tempo, Operação e Acionado por."}
+                : "O formato de estado ou potência será detectado pelos cabeçalhos."}
             </small>
           </label>
 
@@ -425,8 +441,8 @@ export function ImportWorkflow({
           {result?.status === "confirmed" ? (
             <p className="form-message success" role="status">
               {result.confirmation.alreadyConfirmed
-                ? "Este arquivo já havia sido confirmado neste contexto. Nenhum evento foi duplicado."
-                : `Importação confirmada: ${result.confirmation.insertedRows.toLocaleString("pt-BR")} evento(s) inserido(s) e ${result.confirmation.duplicateRows.toLocaleString("pt-BR")} ignorado(s) como duplicata.`}
+                ? "Este arquivo já havia sido confirmado neste contexto. Nenhum registro foi duplicado."
+                : `Importação confirmada: ${result.confirmation.insertedRows.toLocaleString("pt-BR")} registro(s) inserido(s) e ${result.confirmation.duplicateRows.toLocaleString("pt-BR")} ignorado(s) como duplicata.`}
             </p>
           ) : null}
 
@@ -468,10 +484,34 @@ export function ImportWorkflow({
               <dt>Repetidas no arquivo</dt>
               <dd>{currentPreview.repeatedFileRows.toLocaleString("pt-BR")}</dd>
             </div>
-            <div>
-              <dt>Origens desconhecidas</dt>
-              <dd>{currentPreview.unknownSourceRows.toLocaleString("pt-BR")}</dd>
-            </div>
+            {currentPreview.dataKind === "state_events" ? (
+              <div>
+                <dt>Origens desconhecidas</dt>
+                <dd>{currentPreview.unknownSourceRows.toLocaleString("pt-BR")}</dd>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <dt>Dispositivo</dt>
+                  <dd>{currentPreview.deviceName}</dd>
+                </div>
+                <div>
+                  <dt>Potência mínima</dt>
+                  <dd>{formatPower(currentPreview.minPowerW)}</dd>
+                </div>
+                <div>
+                  <dt>Potência máxima</dt>
+                  <dd>{formatPower(currentPreview.maxPowerW)}</dd>
+                </div>
+                <div>
+                  <dt>Classificação</dt>
+                  <dd>
+                    {currentPreview.onRows} ligada(s) · {currentPreview.offRows} desligada(s) ·{" "}
+                    {currentPreview.hysteresisRows} em histerese
+                  </dd>
+                </div>
+              </>
+            )}
             <div>
               <dt>Primeiro evento</dt>
               <dd>
@@ -493,40 +533,65 @@ export function ImportWorkflow({
           </dl>
 
           <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Linha</th>
-                  <th>Tempo original</th>
-                  <th>Horário interpretado</th>
-                  <th>Operação</th>
-                  <th>Acionado por</th>
-                  <th>Classificação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentPreview.sample.map((row) => (
-                  <tr key={row.rowNumber}>
-                    <td>{row.rowNumber}</td>
-                    <td>{row.occurredAtRaw}</td>
-                    <td>
-                      {formatDateTime(row.occurredAt, currentPreview.timeZone)}
-                    </td>
-                    <td title={`Original: ${row.operationRaw}`}>
-                      {operationLabel(row.operation)}
-                    </td>
-                    <td>{row.sourceOriginal || "(vazio)"}</td>
-                    <td>{classificationLabel(row.sourceClassification)}</td>
+            {currentPreview.dataKind === "state_events" ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Linha</th>
+                    <th>Tempo original</th>
+                    <th>Horário interpretado</th>
+                    <th>Operação</th>
+                    <th>Acionado por</th>
+                    <th>Classificação</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {currentPreview.sample.map((row) => (
+                    <tr key={row.rowNumber}>
+                      <td>{row.rowNumber}</td>
+                      <td>{row.occurredAtRaw}</td>
+                      <td>{formatDateTime(row.occurredAt, currentPreview.timeZone)}</td>
+                      <td title={`Original: ${row.operationRaw}`}>
+                        {operationLabel(row.operation)}
+                      </td>
+                      <td>{row.sourceOriginal || "(vazio)"}</td>
+                      <td>{classificationLabel(row.sourceClassification)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Linha</th>
+                    <th>Tempo original</th>
+                    <th>Horário interpretado</th>
+                    <th>Potência</th>
+                    <th>Estado elétrico</th>
+                    <th>Dispositivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentPreview.sample.map((row) => (
+                    <tr key={row.rowNumber}>
+                      <td>{row.rowNumber}</td>
+                      <td>{row.occurredAtRaw}</td>
+                      <td>{formatDateTime(row.occurredAt, currentPreview.timeZone)}</td>
+                      <td title={`Original: ${row.powerRaw}`}>{formatPower(row.powerW)}</td>
+                      <td>{electricalStateLabel(row.electricalState)}</td>
+                      <td>{row.deviceName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div className="import-confirmation-bar">
             <p>
               O arquivo será enviado e validado novamente. Apenas a confirmação
-              cria o lote e os eventos.
+              cria o lote e os registros técnicos.
             </p>
             <button
               className="primary-button"
@@ -555,6 +620,7 @@ export function ImportWorkflow({
               <thead>
                 <tr>
                   <th>Arquivo</th>
+                  <th>Tipo</th>
                   <th>Contexto</th>
                   <th>Responsável</th>
                   <th>Período</th>
@@ -567,6 +633,7 @@ export function ImportWorkflow({
                 {recentBatches.map((batch) => (
                   <tr key={batch.id}>
                     <td>{batch.fileName}</td>
+                    <td>{controllerRoleLabel(batch.dataKind)}</td>
                     <td>
                       {batch.clientName} · {batch.locationName} · {batch.coldRoomName}
                       <small className="table-secondary-line">
@@ -592,8 +659,10 @@ export function ImportWorkflow({
                       ) : (
                         <span>
                           {batch.insertedRows.toLocaleString("pt-BR")} inserida(s) ·{" "}
-                          {batch.duplicateRows.toLocaleString("pt-BR")} duplicada(s) ·{" "}
-                          {batch.unknownSourceRows.toLocaleString("pt-BR")} desconhecida(s)
+                          {batch.duplicateRows.toLocaleString("pt-BR")} duplicada(s)
+                          {batch.dataKind === "state_events"
+                            ? ` · ${batch.unknownSourceRows.toLocaleString("pt-BR")} desconhecida(s)`
+                            : ""}
                           <small className="table-secondary-line">
                             {batch.totalRows.toLocaleString("pt-BR")} linha(s) no total
                           </small>

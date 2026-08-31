@@ -48,6 +48,7 @@ export type ImportControllerOption = {
   clientId: string;
   generatorId: string;
   identifier: string;
+  role: "state" | "power_telemetry";
 };
 
 export type ImportFormOptions = {
@@ -58,7 +59,7 @@ export type ImportFormOptions = {
   controllers: ImportControllerOption[];
 };
 
-export type ImportPreviewRow = {
+export type StateImportPreviewRow = {
   rowNumber: number;
   occurredAt: string;
   occurredAtRaw: string;
@@ -68,7 +69,18 @@ export type ImportPreviewRow = {
   sourceClassification: "programmed" | "test" | "unknown";
 };
 
-export type ImportPreview = {
+export type PowerImportPreviewRow = {
+  rowNumber: number;
+  occurredAt: string;
+  occurredAtRaw: string;
+  powerW: number;
+  powerRaw: string;
+  electricalState: "on" | "off" | "hysteresis";
+  deviceName: string;
+  deviceId: string;
+};
+
+type ImportPreviewBase = {
   fileName: string;
   fileSha256: string;
   sheetName: string;
@@ -76,11 +88,30 @@ export type ImportPreview = {
   totalRows: number;
   existingDuplicateRows: number;
   repeatedFileRows: number;
-  unknownSourceRows: number;
   periodStart: string;
   periodEnd: string;
-  sample: ImportPreviewRow[];
 };
+
+export type StateImportPreview = ImportPreviewBase & {
+  dataKind: "state_events";
+  unknownSourceRows: number;
+  sample: StateImportPreviewRow[];
+};
+
+export type PowerImportPreview = ImportPreviewBase & {
+  dataKind: "power_readings";
+  deviceName: string;
+  deviceId: string;
+  minPowerW: number;
+  maxPowerW: number;
+  onRows: number;
+  offRows: number;
+  hysteresisRows: number;
+  invalidRows: number;
+  sample: PowerImportPreviewRow[];
+};
+
+export type ImportPreview = StateImportPreview | PowerImportPreview;
 
 export type ImportConfirmation = {
   batchId: string;
@@ -117,6 +148,7 @@ export type ImportBatchListItem = {
   generatorName: string;
   controllerName: string;
   authorName: string;
+  dataKind: "state_events" | "power_readings";
 };
 
 export type ParsedImportEvent = {
@@ -131,8 +163,31 @@ export type ParsedImportEvent = {
   fingerprint: string;
 };
 
+export type ParsedPowerReading = {
+  rowNumber: number;
+  occurred_at: string;
+  occurred_at_raw: string;
+  power_w: number;
+  power_raw: string;
+  device_name: string;
+  device_id: string;
+  device_id_normalized: string;
+  event_type: string;
+  event_name: string;
+  event_detail: string;
+  request_from: string;
+  source_detail: string;
+  fingerprint: string;
+  electrical_state: "on" | "off" | "hysteresis";
+};
+
 export type ValidatedImportContext = ImportContext & {
   timeZone: string;
   controllerActivatedAt: string;
   controllerDeactivatedAt: string | null;
+  controllerRole: "state" | "power_telemetry";
+  externalDeviceId: string | null;
+  externalDeviceIdNormalized: string | null;
+  powerOnThresholdW: number | null;
+  powerOffThresholdW: number | null;
 };

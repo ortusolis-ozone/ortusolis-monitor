@@ -1,4 +1,4 @@
-import type { PortalStatus } from "./constants";
+import type { PortalStatus, PowerEvidenceStatus } from "./constants";
 
 export type PortalFilters = {
   startDate?: string;
@@ -32,6 +32,7 @@ export type PortalGeneratorOverview = {
   id: string;
   identifier: string;
   status: PortalStatus;
+  powerEvidenceStatus: PowerEvidenceStatus;
 };
 
 export type PortalColdRoomOverview = {
@@ -57,9 +58,13 @@ export type PortalHistoryItem = {
   generatorId: string;
   generatorIdentifier: string;
   status: PortalStatus;
+  powerEvidenceStatus: PowerEvidenceStatus;
 };
 
-export type PortalVerificationItem = Omit<PortalHistoryItem, "status">;
+export type PortalVerificationItem = Omit<
+  PortalHistoryItem,
+  "status" | "powerEvidenceStatus"
+>;
 
 export type PortalPageData = {
   clientName: string;
