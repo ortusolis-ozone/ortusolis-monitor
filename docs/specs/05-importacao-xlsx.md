@@ -1,6 +1,10 @@
 # Spec 05 — Importação XLSX
 
-**Status:** concluída.
+**Status do MVP original:** concluída.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** o segundo contrato de XLSX e sua compatibilidade com o papel do controlador são definidos pela [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md).
 
 ## Objetivo
 

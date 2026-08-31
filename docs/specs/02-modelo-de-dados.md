@@ -1,6 +1,10 @@
 # Spec 02 — Modelo de dados
 
-**Status:** concluída.
+**Status do MVP original:** concluída.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** para papéis de controlador, leituras e verificações de potência, aplicar a [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md), que substitui as premissas correspondentes desta spec.
 
 ## Objetivo
 

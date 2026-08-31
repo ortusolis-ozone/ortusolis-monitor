@@ -1,5 +1,11 @@
 # Spec 03 — Autenticação e autorização
 
+**Status do MVP original:** concluída.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** as políticas, os privilégios e os testes de isolamento das novas tabelas de telemetria são definidos pela [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md).
+
 ## Objetivo
 
 Garantir autenticação individual e isolamento entre os clientes antes de desenvolver os fluxos operacionais.

@@ -1,5 +1,7 @@
 # PRD — Ortusolis Monitor MVP
 
+> **Evolução posterior ao MVP:** a [spec 10](./specs/10-duplo-controlador-e-telemetria-de-potencia.md) substitui as premissas de controlador único e acrescenta a importação de telemetria de potência. A leitura importada não altera o veto a comando remoto ou controle de potência.
+
 ## 1. Visão do produto
 
 O **Ortusolis Monitor** é um webapp B2B para clientes da Ortusolis acompanharem os registros das aplicações de ozônio realizadas em suas câmaras frias.

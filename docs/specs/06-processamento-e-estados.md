@@ -1,6 +1,10 @@
 # Spec 06 — Processamento e estados
 
-**Status:** concluída.
+**Status do MVP original:** concluída.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** a correlação com potência e seu efeito sanitizado nos estados são definidos pela [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md).
 
 ## Objetivo
 

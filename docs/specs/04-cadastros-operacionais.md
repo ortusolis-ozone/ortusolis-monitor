@@ -1,6 +1,10 @@
 # Spec 04 — Cadastros operacionais
 
-**Status:** concluída.
+**Status do MVP original:** concluída.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** o cadastro, a vigência e a substituição de dois papéis de controlador são definidos pela [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md).
 
 ## Objetivo
 

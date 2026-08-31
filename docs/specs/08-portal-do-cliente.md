@@ -1,6 +1,10 @@
 # Spec 08 — Portal do cliente
 
-**Status:** concluída.
+**Status do MVP original:** concluída.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** a comunicação qualitativa da evidência de potência, sem exposição de dados técnicos, é definida pela [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md).
 
 ## Objetivo
 

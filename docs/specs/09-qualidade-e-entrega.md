@@ -1,5 +1,11 @@
 # Spec 09 — Qualidade e entrega
 
+**Status do MVP original:** pendente de conclusão.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** os testes adicionais obrigatórios para duplo controlador e telemetria são definidos pela [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md).
+
 ## Objetivo
 
 Definir a verificação mínima para liberar o MVP com segurança.

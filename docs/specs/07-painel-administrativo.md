@@ -1,6 +1,10 @@
 # Spec 07 — Painel administrativo
 
-**Status:** concluída.
+**Status do MVP original:** concluída.
+
+**Evolução Spec 10:** pendente de implementação.
+
+> **Evolução:** os cadastros por papel, os lotes de potência e o diagnóstico administrativo da telemetria são definidos pela [spec 10](./10-duplo-controlador-e-telemetria-de-potencia.md).
 
 ## Objetivo
 
