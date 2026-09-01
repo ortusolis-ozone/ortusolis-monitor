@@ -21,3 +21,15 @@ export function createAdminClient() {
     },
   });
 }
+
+export function createPasswordVerificationClient() {
+  const { url, publishableKey } = getPublicSupabaseConfig();
+
+  return createClient<Database>(url, publishableKey, {
+    auth: {
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      persistSession: false,
+    },
+  });
+}

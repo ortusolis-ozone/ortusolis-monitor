@@ -298,6 +298,65 @@ a {
   color: var(--color-brand);
 }
 
+.profile-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.profile-settings-card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  min-width: 0;
+  padding: clamp(var(--space-5), 3vw, var(--space-6));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-8);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel-strong);
+}
+
+.profile-settings-card-wide {
+  grid-column: 1 / -1;
+}
+
+.profile-settings-card > header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-settings-card h2 {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--tracking-title);
+}
+
+.profile-settings-card > header > p:last-child,
+.profile-security-note {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-body-small);
+  line-height: var(--leading-body);
+}
+
+.profile-form {
+  padding: 0;
+}
+
+.profile-form > .primary-button {
+  width: fit-content;
+  min-width: 9rem;
+}
+
+.profile-password-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.profile-password-form > .form-message,
+.profile-password-form > .primary-button {
+  grid-column: 1 / -1;
+}
+
 .admin-main {
   display: grid;
   gap: var(--space-6);
@@ -1530,8 +1589,16 @@ tbody tr:last-child td {
   .technical-event-grid,
   .technical-event dl,
   .review-form,
-  .loading-grid {
+  .loading-grid,
+  .profile-settings-grid,
+  .profile-password-form {
     grid-template-columns: 1fr;
+  }
+
+  .profile-settings-card-wide,
+  .profile-password-form > .form-message,
+  .profile-password-form > .primary-button {
+    grid-column: auto;
   }
 
   .review-record,

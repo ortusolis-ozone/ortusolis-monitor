@@ -7,6 +7,7 @@ const navigation = [
   { href: "/admin/inconsistencias", label: "Inconsistências" },
   { href: "/admin/usuarios", label: "Usuários" },
   { href: "/admin/mapeamentos", label: "Mapeamento de origens" },
+  { href: "/admin/perfil", label: "Meu perfil" },
 ];
 
 export function AdminNavigation() {
