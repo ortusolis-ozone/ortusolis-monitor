@@ -4,6 +4,8 @@
 
 **Aprovação do produto:** 31/08/2026.
 
+**Adendo operacional aprovado:** 01/09/2026 — importação retroativa em controlador substituído, limitada à sua vigência.
+
 **Tipo:** evolução funcional posterior ao MVP original.
 
 **Dependências:** specs 00, 02, 03, 04, 05, 06, 07, 08 e 09.
@@ -81,6 +83,9 @@ Intervalo temporal coberto por um lote confirmado do controlador de potência. A
 - Controladores de papéis diferentes podem e devem ter vigências simultâneas.
 - Um controlador de estado nunca recebe arquivo de potência e um controlador de potência nunca recebe arquivo de estado.
 - A substituição de um papel não encerra nem modifica o controlador do outro papel.
+- A substituição encerra a vigência do controlador antigo e inicia a do novo no mesmo instante, de forma atômica, sem apagar o controlador ou seus dados.
+- Um controlador substituído continua disponível para importações retroativas, desde que todas as linhas estejam em sua vigência `[activated_at, deactivated_at)`.
+- O instante exato do corte pertence ao controlador novo; o antigo aceita somente instantes anteriores ao corte.
 
 A restrição estrutural do banco garantirá **no máximo um controlador vigente por papel**. A exigência de **dois papéis presentes** será garantida pelas operações atômicas de cadastro e por uma validação explícita de prontidão do gerador, pois uma restrição multirregistro não pode impedir com segurança os estados transitórios de uma substituição.
 
@@ -336,14 +341,17 @@ Regras adicionais:
 - A hierarquia do gerador exibe separadamente `Estado liga/desliga` e `Telemetria de potência`.
 - Cada papel mostra identificação, vigência e status.
 - Potência mostra também Device ID e limites configurados.
+- A substituição pode ser iniciada tanto na lista de controladores quanto em `Clientes e instalações → Ver estrutura → Gerenciar geradores`.
 - Ações de substituição pedem explicitamente qual papel será substituído.
 - Gerador sem um dos papéis exibe o estado de prontidão e a ação necessária.
 
 ### Importações
 
 - O fluxo seleciona primeiro o gerador e depois um dos controladores compatíveis.
+- Controladores ativos aparecem primeiro; controladores históricos permanecem selecionáveis com sua vigência identificada.
 - O formato é detectado automaticamente após o upload.
 - Incompatibilidade entre formato e papel bloqueia a prévia.
+- Linha fora da vigência do controlador selecionado bloqueia a prévia e a confirmação.
 - O histórico diferencia claramente lotes de estado e lotes de potência.
 
 ### Diagnóstico
@@ -406,6 +414,7 @@ Nenhum dado bruto existente será reescrito ou apagado. A desativação da funci
 - Não é possível manter vigências sobrepostas de dois controladores do mesmo papel.
 - É possível manter simultaneamente um controlador de estado e um de potência.
 - Substituir potência não encerra estado, e vice-versa.
+- A substituição preserva o controlador antigo e todos os dados já vinculados a ele.
 - Controladores legados são migrados para `state` sem perda de histórico.
 
 ### Importação
@@ -415,6 +424,8 @@ Nenhum dado bruto existente será reescrito ou apagado. A desativação da funci
 - Device ID divergente, múltiplos dispositivos, unidade inválida ou vigência incompatível bloqueiam a confirmação.
 - Arquivo em ordem decrescente produz o mesmo resultado que o mesmo arquivo em ordem crescente.
 - Milissegundos e fuso da unidade são preservados.
+- Um controlador histórico aceita importação retroativa dentro de sua vigência e rejeita registros no ou após o corte.
+- O controlador novo aceita registros a partir do instante exato do corte.
 - Reimportação e sobreposição não duplicam leituras.
 - Falha não deixa lote parcial.
 
@@ -496,6 +507,7 @@ O desenvolvimento só pode começar quando:
 ## Evidências de conclusão
 
 - A migration `20260831174610_dual_controller_power_telemetry.sql` adiciona os papéis `state` e `power_telemetry`, vigências independentes, prontidão do gerador, leituras de potência, correlações, inconsistências, RLS, auditoria e contratos versionados sem remover os contratos anteriores.
+- A migration `20260901141902_allow_historical_controller_imports.sql` permite confirmar importações retroativas em controladores substituídos sem relaxar a validação linha a linha do intervalo de vigência.
 - O cadastro guiado e o cadastro individual de gerador criam os dois controladores na mesma transação. Cadastro, edição, substituição e histórico tratam cada papel de forma independente.
 - O importador detecta o formato pelos cabeçalhos, valida o papel e o Device ID, preserva milissegundos e fuso, aceita watts com ponto ou vírgula e mantém prévia, confirmação e idempotência para os dois formatos.
 - O arquivo real de potência fornecido foi validado com 57 leituras, incluindo `71,8 W` às `07:00:32.813` e `0 W` às `07:30:08.064`; a repetição do mesmo arquivo não duplicou registros.
@@ -503,6 +515,7 @@ O desenvolvimento só pode começar quando:
 - O portal publica apenas `Potência confirmada`, `Verificação necessária`, `Sem cobertura` ou `Sem aplicação concluída`, além do aviso de que a potência é evidência indireta. Watts, horários, Device ID, limites e vínculos técnicos permanecem restritos ao Master por RLS.
 - O cenário ponta a ponta foi verificado em navegador nas visões Master e cliente, em desktop e smartphone: cadastro dos dois controladores, prévia e confirmação dos dois XLSX, idempotência, correlação e publicação qualitativa.
 - A suíte final inclui `supabase db reset`, `supabase test db`, `supabase db lint`, testes unitários do parser, lint da aplicação, verificação de tipos e build de produção.
+- O teste `10_controller_replacement_imports.sql` cobre estado e potência antes, no instante e depois do corte, além de confirmar a preservação dos vínculos históricos.
 - Os tipos TypeScript gerados em `lib/supabase/database.types.ts` refletem o schema concluído.
 
 ## Decisões aprovadas

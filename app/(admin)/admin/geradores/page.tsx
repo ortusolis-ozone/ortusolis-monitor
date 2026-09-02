@@ -5,6 +5,7 @@ import {
   createGeneratorAction,
   editGeneratorAction,
   reassignGeneratorAction,
+  replaceControllerAction,
   setGeneratorStatusAction,
 } from "@/lib/operations/actions";
 import { parseStatusFilter } from "@/lib/operations/constants";
@@ -18,6 +19,10 @@ type GeneratorsPageProps = {
   searchParams: Promise<{ status?: string }>;
 };
 
+type ControllerOption = Awaited<
+  ReturnType<typeof getOperationalFormOptions>
+>["controllers"][number];
+
 function todayInFortaleza() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Fortaleza",
@@ -25,6 +30,98 @@ function todayInFortaleza() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+}
+
+function ControllerReplacementAction({
+  controller,
+  today,
+}: {
+  controller: ControllerOption;
+  today: string;
+}) {
+  const isPowerController = controller.role === "power_telemetry";
+
+  return (
+    <details className="row-details">
+      <summary>
+        Substituir {isPowerController ? "potência" : "estado"}
+      </summary>
+      <OperationalForm
+        action={replaceControllerAction}
+        className="operational-form compact-form"
+        confirmation="Confirmar a substituição? O controlador atual será encerrado e o novo será ativado na data informada."
+        submitLabel="Confirmar substituição"
+      >
+        <input name="generator_id" type="hidden" value={controller.generator_id} />
+        <input name="role" type="hidden" value={controller.role} />
+        <p className="field-hint">
+          Controlador atual: <strong>{controller.identifier}</strong>
+        </p>
+        <label>
+          Identificação do novo controlador
+          <input name="identifier" required />
+          <FieldError name="identifier" />
+        </label>
+        <label>
+          Data de ativação do novo
+          <input
+            defaultValue={today}
+            name="activated_on"
+            required
+            type="date"
+          />
+          <FieldError name="activated_on" />
+        </label>
+        {isPowerController ? (
+          <>
+            <label>
+              Device ID do novo controlador
+              <input name="external_device_id" required />
+              <FieldError name="external_device_id" />
+            </label>
+            <label>
+              Limite ligado (W)
+              <input
+                defaultValue={controller.power_on_threshold_w ?? 5}
+                min="0.001"
+                name="power_on_threshold_w"
+                required
+                step="0.001"
+                type="number"
+              />
+              <FieldError name="power_on_threshold_w" />
+            </label>
+            <label>
+              Limite desligado (W)
+              <input
+                defaultValue={controller.power_off_threshold_w ?? 1}
+                min="0"
+                name="power_off_threshold_w"
+                required
+                step="0.001"
+                type="number"
+              />
+            </label>
+            <label>
+              Tolerância (segundos)
+              <input
+                defaultValue={
+                  controller.correlation_tolerance_seconds ?? 120
+                }
+                max="86400"
+                min="0"
+                name="correlation_tolerance_seconds"
+                required
+                step="1"
+                type="number"
+              />
+              <FieldError name="correlation_tolerance_seconds" />
+            </label>
+          </>
+        ) : null}
+      </OperationalForm>
+    </details>
+  );
 }
 
 export default async function GeneratorsPage({
@@ -147,6 +244,18 @@ export default async function GeneratorsPage({
                     room.client_id === generator.client_id &&
                     room.id !== generator.currentAssignment?.cold_room_id,
                 );
+                const activeControllers = options.controllers.filter(
+                  (controller) =>
+                    controller.generator_id === generator.id &&
+                    controller.is_active &&
+                    controller.deactivated_at === null,
+                );
+                const stateController = activeControllers.find(
+                  (controller) => controller.role === "state",
+                );
+                const powerController = activeControllers.find(
+                  (controller) => controller.role === "power_telemetry",
+                );
 
                 return (
                   <tr key={generator.id}>
@@ -182,6 +291,11 @@ export default async function GeneratorsPage({
                           ? "Pronto"
                           : "Telemetria pendente"}
                       </span>
+                      <small className="table-secondary-line">
+                        Estado: {stateController?.identifier ?? "pendente"}
+                        {" · "}
+                        Potência: {powerController?.identifier ?? "pendente"}
+                      </small>
                     </td>
                     <td>
                       <StatusBadge isActive={generator.is_active} />
@@ -213,44 +327,59 @@ export default async function GeneratorsPage({
                         </details>
 
                         {generator.is_active && generator.currentAssignment ? (
-                          <details className="row-details">
-                            <summary>Realocar</summary>
-                            <OperationalForm
-                              action={reassignGeneratorAction}
-                              className="operational-form compact-form"
-                              confirmation="Confirmar a realocação? A alocação atual será encerrada na data informada e o histórico não poderá ser excluído."
-                              submitLabel="Confirmar realocação"
-                            >
-                              <input
-                                name="generator_id"
-                                type="hidden"
-                                value={generator.id}
-                              />
-                              <label>
-                                Câmara de destino
-                                <select name="cold_room_id" required>
-                                  <option value="">Selecione</option>
-                                  {targetRooms.map((room) => (
-                                    <option key={room.id} value={room.id}>
-                                      {locationNames.get(room.location_id)} —{" "}
-                                      {room.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <FieldError name="cold_room_id" />
-                              </label>
-                              <label>
-                                Data efetiva
+                          <>
+                            <details className="row-details">
+                              <summary>Realocar</summary>
+                              <OperationalForm
+                                action={reassignGeneratorAction}
+                                className="operational-form compact-form"
+                                confirmation="Confirmar a realocação? A alocação atual será encerrada na data informada e o histórico não poderá ser excluído."
+                                submitLabel="Confirmar realocação"
+                              >
                                 <input
-                                  defaultValue={today}
-                                  name="effective_on"
-                                  required
-                                  type="date"
+                                  name="generator_id"
+                                  type="hidden"
+                                  value={generator.id}
                                 />
-                                <FieldError name="effective_on" />
-                              </label>
-                            </OperationalForm>
-                          </details>
+                                <label>
+                                  Câmara de destino
+                                  <select name="cold_room_id" required>
+                                    <option value="">Selecione</option>
+                                    {targetRooms.map((room) => (
+                                      <option key={room.id} value={room.id}>
+                                        {locationNames.get(room.location_id)} —{" "}
+                                        {room.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <FieldError name="cold_room_id" />
+                                </label>
+                                <label>
+                                  Data efetiva
+                                  <input
+                                    defaultValue={today}
+                                    name="effective_on"
+                                    required
+                                    type="date"
+                                  />
+                                  <FieldError name="effective_on" />
+                                </label>
+                              </OperationalForm>
+                            </details>
+
+                            {stateController ? (
+                              <ControllerReplacementAction
+                                controller={stateController}
+                                today={today}
+                              />
+                            ) : null}
+                            {powerController ? (
+                              <ControllerReplacementAction
+                                controller={powerController}
+                                today={today}
+                              />
+                            ) : null}
+                          </>
                         ) : null}
 
                         <OperationalForm

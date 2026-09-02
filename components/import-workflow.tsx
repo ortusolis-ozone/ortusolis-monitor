@@ -16,6 +16,7 @@ import type {
   ImportActionResult,
   ImportBatchListItem,
   ImportContext,
+  ImportControllerOption,
   ImportFormOptions,
 } from "@/lib/imports/types";
 import { createClient } from "@/lib/supabase/client";
@@ -46,6 +47,44 @@ function formatDateTime(value: string | null, timeZone?: string) {
     timeStyle: "medium",
     timeZone,
   }).format(new Date(value));
+}
+
+function formatControllerDateTime(value: string, timeZone?: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone,
+  }).format(new Date(value));
+}
+
+function controllerValidityLabel(
+  controller: ImportControllerOption,
+  timeZone?: string,
+) {
+  const activatedAt = formatControllerDateTime(controller.activatedAt, timeZone);
+
+  if (controller.isActive) return `ativo desde ${activatedAt}`;
+  if (!controller.deactivatedAt) return `histórico desde ${activatedAt}`;
+
+  return `histórico: ${activatedAt} até antes de ${formatControllerDateTime(
+    controller.deactivatedAt,
+    timeZone,
+  )}`;
+}
+
+function controllerOptionLabel(
+  controller: ImportControllerOption,
+  timeZone?: string,
+) {
+  const role =
+    controller.role === "state"
+      ? "Estado liga/desliga"
+      : "Telemetria de potência";
+
+  return `${role} — ${controller.identifier} — ${controllerValidityLabel(
+    controller,
+    timeZone,
+  )}`;
 }
 
 function formatFileSize(bytes: number) {
@@ -150,6 +189,9 @@ export function ImportWorkflow({
       ),
     [options.controllers, selection.clientId, selection.generatorId],
   );
+  const selectedTimeZone = options.locations.find(
+    (location) => location.id === selection.locationId,
+  )?.timeZone;
   const contextComplete = Object.values(selection).every(Boolean);
   const currentKey = file
     ? [
@@ -408,9 +450,10 @@ export function ImportWorkflow({
                 <option value="">Selecione</option>
                 {controllers.map((controller) => (
                   <option key={controller.id} value={controller.id}>
-                    {controller.role === "state"
-                      ? "Estado liga/desliga"
-                      : "Telemetria de potência"} — {controller.identifier}
+                    {controllerOptionLabel(
+                      controller,
+                      selectedTimeZone,
+                    )}
                   </option>
                 ))}
               </select>

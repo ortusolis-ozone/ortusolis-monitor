@@ -68,7 +68,6 @@ export async function validateImportContext(
         .eq("id", context.controllerId)
         .eq("client_id", context.clientId)
         .eq("generator_id", context.generatorId)
-        .eq("is_active", true)
         .maybeSingle(),
     ]);
 
@@ -86,7 +85,7 @@ export async function validateImportContext(
     !controller.data
   ) {
     throw new ImportValidationError(
-      "A hierarquia selecionada não está ativa, atual ou consistente.",
+      "A hierarquia operacional deve estar ativa e coerente, e o controlador deve pertencer ao gerador selecionado.",
     );
   }
 

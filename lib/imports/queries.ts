@@ -69,7 +69,9 @@ export async function getImportPageData(): Promise<{
       .is("valid_until", null),
     supabase
       .from("controllers")
-      .select("id, client_id, generator_id, identifier, role, is_active")
+      .select(
+        "id, client_id, generator_id, identifier, role, is_active, activated_at, deactivated_at",
+      )
       .order("identifier"),
     supabase
       .from("profiles")
@@ -167,18 +169,21 @@ export async function getImportPageData(): Promise<{
     generatorOptions.map((generator) => generator.id),
   );
   const controllerOptions = controllers
-    .filter(
-      (controller) =>
-        controller.is_active &&
-        allowedGeneratorIds.has(controller.generator_id),
-    )
+    .filter((controller) => allowedGeneratorIds.has(controller.generator_id))
     .map((controller) => ({
       id: controller.id,
       clientId: controller.client_id,
       generatorId: controller.generator_id,
       identifier: controller.identifier,
       role: controllerRole(controller.role),
-    }));
+      isActive: controller.is_active,
+      activatedAt: controller.activated_at,
+      deactivatedAt: controller.deactivated_at,
+    }))
+    .sort((left, right) => {
+      if (left.isActive !== right.isActive) return left.isActive ? -1 : 1;
+      return right.activatedAt.localeCompare(left.activatedAt);
+    });
   const clientNames = new Map(
     clients.map((client) => [client.id, client.legal_name]),
   );

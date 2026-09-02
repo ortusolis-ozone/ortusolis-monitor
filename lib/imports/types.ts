@@ -49,6 +49,9 @@ export type ImportControllerOption = {
   generatorId: string;
   identifier: string;
   role: "state" | "power_telemetry";
+  isActive: boolean;
+  activatedAt: string;
+  deactivatedAt: string | null;
 };
 
 export type ImportFormOptions = {
