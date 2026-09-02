@@ -213,6 +213,10 @@ a {
   padding: var(--space-4) 0 var(--space-12);
 }
 
+.app-shell[data-layout="admin"] {
+  padding-top: 0;
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -273,11 +277,20 @@ a {
   padding: clamp(var(--space-6), 5vw, var(--space-12));
 }
 
+.admin-sticky-bars {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin-bottom: var(--space-10);
+  padding-top: var(--space-4);
+  background: var(--color-canvas);
+}
+
 .admin-navigation {
   display: flex;
   gap: 0.4rem;
   overflow-x: auto;
-  margin: var(--space-4) 0 var(--space-10);
+  margin: var(--space-4) 0 0;
   padding: 0.45rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-6);

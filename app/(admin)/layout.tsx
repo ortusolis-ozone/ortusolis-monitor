@@ -9,12 +9,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div className="app-shell" data-layout="admin">
-      <AppHeader
-        area="Administração"
-        homeHref="/admin"
-        userName={profile.fullName}
-      />
-      <AdminNavigation />
+      <div className="admin-sticky-bars">
+        <AppHeader
+          area="Administração"
+          homeHref="/admin"
+          userName={profile.fullName}
+        />
+        <AdminNavigation />
+      </div>
       {children}
     </div>
   );
