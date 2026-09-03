@@ -28,6 +28,8 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 8 | [Portal do cliente](./08-portal-do-cliente.md) | Consulta segura e responsiva dos estados públicos | Concluída | Pendente de implementação |
 | 9 | [Qualidade e entrega](./09-qualidade-e-entrega.md) | Testes, segurança e critérios para publicação | Pendente de conclusão | Pendente de implementação |
 | 10 | [Duplo controlador e telemetria de potência](./10-duplo-controlador-e-telemetria-de-potencia.md) | Dois sinais por gerador, importação de potência e evidência sanitizada | Não se aplica | Aprovada; desenvolvimento não iniciado |
+| 11 | [Importação conjunta de estado e potência](./11-importacao-conjunta-de-estado-e-potencia.md) | Dois campos visíveis, confirmação conjunta e histórico agrupado | Não se aplica | Proposta para aprovação |
+| 12 | [Potência nominal e alerta de redução operacional](./12-potencia-nominal-e-alerta-de-reducao-operacional.md) | Mínimo automático de 85%, diagnóstico técnico e alerta qualitativo | Não se aplica | Proposta para aprovação |
 
 ## Marcos
 
@@ -36,7 +38,13 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 3. **Produto utilizável:** specs 7 e 8.
 4. **Liberação do MVP:** spec 9.
 5. **Evolução de telemetria:** spec 10 aprovada, com desenvolvimento ainda não iniciado.
+6. **Operação conjunta das duas fontes:** spec 11 proposta para aprovação.
+7. **Avaliação da potência operacional:** spec 12 proposta para aprovação.
 
 Cada spec deve ser detalhada imediatamente antes de sua implementação. Uma etapa só avança quando os critérios de aceite da anterior estiverem atendidos.
 
 A spec 10 é uma evolução do domínio já implementado. Nos pontos de controlador e telemetria de potência, sua regra de precedência substitui as premissas correspondentes das specs anteriores sem reabrir as demais decisões do MVP.
+
+A spec 11 evolui apenas a experiência de importação definida nas specs 05 e 10. Ela agrupa os dois lotes em uma sessão administrativa, sem substituir os formatos, a correlação temporal ou a publicação sanitizada da spec 10.
+
+A spec 12 adiciona potência nominal versionada ao gerador e avalia a leitura de início correlacionada pela spec 10. Ela mantém a aplicação como estado principal, calcula automaticamente o mínimo de 85% e expõe ao cliente somente um alerta qualitativo quando houver redução abaixo do esperado.

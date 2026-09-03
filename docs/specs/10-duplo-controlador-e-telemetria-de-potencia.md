@@ -10,6 +10,8 @@
 
 **Dependências:** specs 00, 02, 03, 04, 05, 06, 07, 08 e 09.
 
+> **Evoluções posteriores:** a experiência de dois campos visíveis, confirmação conjunta e histórico agrupado é definida pela [spec 11](./11-importacao-conjunta-de-estado-e-potencia.md). A potência nominal, o mínimo automático e o alerta de redução operacional são definidos pela [spec 12](./12-potencia-nominal-e-alerta-de-reducao-operacional.md). Os formatos e a correlação temporal desta spec permanecem válidos; a spec 12 substitui somente a apresentação normal da evidência de potência ao cliente.
+
 ## Regra de precedência
 
 Esta spec substitui, somente no domínio de controladores e telemetria de potência, as premissas anteriores de que um gerador possui um único controlador e de que apenas eventos `Ligar`/`Desligar` são importados.
