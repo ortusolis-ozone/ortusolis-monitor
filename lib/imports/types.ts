@@ -1,15 +1,21 @@
-export type ImportContext = {
+export type ImportHierarchyContext = {
   clientId: string;
   locationId: string;
   coldRoomId: string;
   generatorId: string;
+};
+
+export type ImportContext = ImportHierarchyContext & {
   controllerId: string;
 };
+
+export type ImportDataKind = "state_events" | "power_readings";
 
 export type ImportUploadRequest = {
   objectPath: string;
   fileName: string;
   context: ImportContext;
+  expectedDataKind?: ImportDataKind;
 };
 
 export type ImportConfirmationRequest = ImportUploadRequest & {
@@ -93,6 +99,8 @@ type ImportPreviewBase = {
   repeatedFileRows: number;
   periodStart: string;
   periodEnd: string;
+  alreadyImported: boolean;
+  existingBatchId: string | null;
 };
 
 export type StateImportPreview = ImportPreviewBase & {
@@ -131,6 +139,111 @@ export type ImportActionResult =
   | { status: "error"; message: string }
   | { status: "preview"; preview: ImportPreview }
   | { status: "confirmed"; confirmation: ImportConfirmation };
+
+export type ImportSessionConfirmationRequest = {
+  context: ImportHierarchyContext;
+  state: ImportConfirmationRequest;
+  power: ImportConfirmationRequest;
+  coverageWarningAcknowledged: boolean;
+};
+
+export type ImportCoverageStatus =
+  | "full"
+  | "partial"
+  | "no_intersection"
+  | "unknown";
+
+export type ImportSessionConfirmation = {
+  sessionId: string;
+  alreadyConfirmed: boolean;
+  coverageStatus: "full" | "partial";
+  coverageWarningAcknowledged: boolean;
+  statePeriodStart: string;
+  statePeriodEnd: string;
+  powerPeriodStart: string;
+  powerPeriodEnd: string;
+  intersectionStart: string;
+  intersectionEnd: string;
+  stateBatch: ImportConfirmation;
+  powerBatch: ImportConfirmation;
+};
+
+export type ImportSessionActionResult =
+  | { status: "error"; message: string }
+  | { status: "confirmed"; confirmation: ImportSessionConfirmation };
+
+export type ImportSourceStatus =
+  | "empty"
+  | "selected"
+  | "validating"
+  | "valid"
+  | "already_imported"
+  | "invalid"
+  | "confirmed";
+
+export type ImportSessionUiStatus =
+  | "incomplete"
+  | "validating"
+  | "ready"
+  | "ready_with_warning"
+  | "confirming"
+  | "confirmed"
+  | "failed";
+
+export type LatestImportSource = {
+  batchId: string;
+  clientId: string;
+  locationId: string;
+  coldRoomId: string;
+  generatorId: string;
+  controllerId: string;
+  dataKind: ImportDataKind;
+  fileName: string;
+  confirmedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  totalRows: number;
+  authorName: string;
+};
+
+export type ImportSessionBatchSummary = {
+  id: string;
+  fileName: string;
+  controllerName: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  totalRows: number;
+  insertedRows: number;
+  duplicateRows: number;
+  unknownSourceRows: number;
+};
+
+export type ImportSessionListItem = {
+  id: string;
+  status: "confirmed" | "failed";
+  coverageStatus: ImportCoverageStatus;
+  coverageWarningAcknowledged: boolean;
+  errorMessage: string | null;
+  createdAt: string;
+  confirmedAt: string | null;
+  statePeriodStart: string | null;
+  statePeriodEnd: string | null;
+  powerPeriodStart: string | null;
+  powerPeriodEnd: string | null;
+  intersectionStart: string | null;
+  intersectionEnd: string | null;
+  clientName: string;
+  locationName: string;
+  coldRoomName: string;
+  generatorName: string;
+  stateControllerName: string;
+  powerControllerName: string;
+  authorName: string;
+  stateBatch: ImportSessionBatchSummary | null;
+  powerBatch: ImportSessionBatchSummary | null;
+  failedStateFileName: string | null;
+  failedPowerFileName: string | null;
+};
 
 export type ImportBatchListItem = {
   id: string;

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  confirmXlsxImport,
+  confirmImportSession,
   previewXlsxImport,
 } from "@/lib/imports/actions";
 import {
@@ -12,21 +12,39 @@ import {
   MAX_IMPORT_FILE_BYTES,
   XLSX_MIME_TYPE,
 } from "@/lib/imports/constants";
+import {
+  aggregateImportSessionStatus,
+  compareImportPeriods,
+  missingImportSourceMessage,
+  type ImportCoverage,
+} from "@/lib/imports/session";
 import type {
-  ImportActionResult,
-  ImportBatchListItem,
   ImportContext,
   ImportControllerOption,
   ImportFormOptions,
+  ImportPreview,
+  ImportSessionConfirmation,
+  ImportSourceStatus,
+  LatestImportSource,
 } from "@/lib/imports/types";
 import { createClient } from "@/lib/supabase/client";
+
+type SourceKey = "state" | "power";
 
 type Selection = {
   clientId: string;
   locationId: string;
   coldRoomId: string;
   generatorId: string;
+};
+
+type SourceSlot = {
   controllerId: string;
+  file: File | null;
+  preview: ImportPreview | null;
+  error: string | null;
+  validating: boolean;
+  confirmed: boolean;
 };
 
 const emptySelection: Selection = {
@@ -34,13 +52,29 @@ const emptySelection: Selection = {
   locationId: "",
   coldRoomId: "",
   generatorId: "",
+};
+
+const emptySourceSlot: SourceSlot = {
   controllerId: "",
+  file: null,
+  preview: null,
+  error: null,
+  validating: false,
+  confirmed: false,
+};
+
+const sourceStatusLabels: Record<ImportSourceStatus, string> = {
+  empty: "Não selecionado",
+  selected: "Pronto para validar",
+  validating: "Validando",
+  valid: "Validado",
+  already_imported: "Já importado",
+  invalid: "Arquivo incompatível",
+  confirmed: "Importado com sucesso",
 };
 
 function formatDateTime(value: string | null, timeZone?: string) {
-  if (!value) {
-    return "—";
-  }
+  if (!value) return "—";
 
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
@@ -76,12 +110,7 @@ function controllerOptionLabel(
   controller: ImportControllerOption,
   timeZone?: string,
 ) {
-  const role =
-    controller.role === "state"
-      ? "Estado liga/desliga"
-      : "Telemetria de potência";
-
-  return `${role} — ${controller.identifier} — ${controllerValidityLabel(
+  return `${controller.identifier} — ${controllerValidityLabel(
     controller,
     timeZone,
   )}`;
@@ -113,16 +142,6 @@ function classificationLabel(classification: string) {
   return "Desconhecida";
 }
 
-function batchStatusLabel(status: ImportBatchListItem["status"]) {
-  if (status === "confirmed") return "Confirmado";
-  if (status === "failed") return "Falhou";
-  return "Processando";
-}
-
-function controllerRoleLabel(role: ImportBatchListItem["dataKind"]) {
-  return role === "state_events" ? "Estado liga/desliga" : "Telemetria de potência";
-}
-
 function electricalStateLabel(state: "on" | "off" | "hysteresis") {
   if (state === "on") return "Ligada";
   if (state === "off") return "Desligada";
@@ -130,24 +149,200 @@ function electricalStateLabel(state: "on" | "off" | "hysteresis") {
 }
 
 function formatPower(power: number) {
-  return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(power)} W`;
+  return `${new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 3,
+  }).format(power)} W`;
+}
+
+function sourceStatus(slot: SourceSlot): ImportSourceStatus {
+  if (slot.validating) return "validating";
+  if (slot.error) return "invalid";
+  if (slot.confirmed) return "confirmed";
+  if (slot.preview?.alreadyImported) return "already_imported";
+  if (slot.preview) return "valid";
+  if (slot.file) return "selected";
+  return "empty";
+}
+
+function LatestSourceSummary({
+  source,
+  timeZone,
+}: {
+  source: LatestImportSource | undefined;
+  timeZone?: string;
+}) {
+  if (!source) {
+    return (
+      <p className="source-persisted-empty">
+        Nenhuma confirmação anterior para este controlador.
+      </p>
+    );
+  }
+
+  return (
+    <div className="source-persisted-summary">
+      <p>
+        <strong>Última confirmação</strong> · {formatDateTime(source.confirmedAt)}
+      </p>
+      <p>{source.fileName}</p>
+      <p>
+        {formatDateTime(source.periodStart, timeZone)} —{" "}
+        {formatDateTime(source.periodEnd, timeZone)} ·{" "}
+        {source.totalRows.toLocaleString("pt-BR")} linha(s)
+      </p>
+      <p>Responsável: {source.authorName}</p>
+    </div>
+  );
+}
+
+function StatePreview({ preview }: { preview: ImportPreview }) {
+  if (preview.dataKind !== "state_events") return null;
+
+  return (
+    <div className="source-preview" aria-label="Prévia do arquivo de estado">
+      <dl className="source-preview-summary">
+        <div>
+          <dt>Linhas válidas</dt>
+          <dd>{preview.totalRows.toLocaleString("pt-BR")}</dd>
+        </div>
+        <div>
+          <dt>Já existentes</dt>
+          <dd>{preview.existingDuplicateRows.toLocaleString("pt-BR")}</dd>
+        </div>
+        <div>
+          <dt>Repetidas</dt>
+          <dd>{preview.repeatedFileRows.toLocaleString("pt-BR")}</dd>
+        </div>
+        <div>
+          <dt>Origens desconhecidas</dt>
+          <dd>{preview.unknownSourceRows.toLocaleString("pt-BR")}</dd>
+        </div>
+      </dl>
+      <div className="table-wrap source-preview-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Linha</th>
+              <th>Horário</th>
+              <th>Operação</th>
+              <th>Acionado por</th>
+              <th>Classificação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {preview.sample.map((row) => (
+              <tr key={row.rowNumber}>
+                <td>{row.rowNumber}</td>
+                <td title={`Original: ${row.occurredAtRaw}`}>
+                  {formatDateTime(row.occurredAt, preview.timeZone)}
+                </td>
+                <td title={`Original: ${row.operationRaw}`}>
+                  {operationLabel(row.operation)}
+                </td>
+                <td>{row.sourceOriginal || "(vazio)"}</td>
+                <td>{classificationLabel(row.sourceClassification)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PowerPreview({ preview }: { preview: ImportPreview }) {
+  if (preview.dataKind !== "power_readings") return null;
+
+  return (
+    <div className="source-preview" aria-label="Prévia do arquivo de potência">
+      <dl className="source-preview-summary">
+        <div>
+          <dt>Linhas válidas</dt>
+          <dd>{preview.totalRows.toLocaleString("pt-BR")}</dd>
+        </div>
+        <div>
+          <dt>Já existentes</dt>
+          <dd>{preview.existingDuplicateRows.toLocaleString("pt-BR")}</dd>
+        </div>
+        <div>
+          <dt>Potência mínima</dt>
+          <dd>{formatPower(preview.minPowerW)}</dd>
+        </div>
+        <div>
+          <dt>Potência máxima</dt>
+          <dd>{formatPower(preview.maxPowerW)}</dd>
+        </div>
+      </dl>
+      <p className="source-preview-note">
+        {preview.deviceName} · {preview.onRows} ligada(s) · {preview.offRows}{" "}
+        desligada(s) · {preview.hysteresisRows} em histerese
+      </p>
+      <div className="table-wrap source-preview-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Linha</th>
+              <th>Horário</th>
+              <th>Potência</th>
+              <th>Estado elétrico</th>
+              <th>Dispositivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {preview.sample.map((row) => (
+              <tr key={row.rowNumber}>
+                <td>{row.rowNumber}</td>
+                <td title={`Original: ${row.occurredAtRaw}`}>
+                  {formatDateTime(row.occurredAt, preview.timeZone)}
+                </td>
+                <td title={`Original: ${row.powerRaw}`}>
+                  {formatPower(row.powerW)}
+                </td>
+                <td>{electricalStateLabel(row.electricalState)}</td>
+                <td>{row.deviceName}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function coverageGapText(coverage: ImportCoverage, timeZone?: string) {
+  if (coverage.status !== "partial") return null;
+
+  const gaps = [coverage.uncoveredBefore, coverage.uncoveredAfter]
+    .filter((gap): gap is { start: string; end: string } => gap !== null)
+    .map(
+      (gap) =>
+        `${formatDateTime(gap.start, timeZone)} — ${formatDateTime(
+          gap.end,
+          timeZone,
+        )}`,
+    );
+
+  return gaps.join("; ");
 }
 
 export function ImportWorkflow({
   profileId,
   options,
-  recentBatches,
+  latestSources,
 }: {
   profileId: string;
   options: ImportFormOptions;
-  recentBatches: ImportBatchListItem[];
+  latestSources: LatestImportSource[];
 }) {
   const router = useRouter();
   const [selection, setSelection] = useState<Selection>(emptySelection);
-  const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<ImportActionResult | null>(null);
-  const [previewKey, setPreviewKey] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"preview" | "confirm" | null>(null);
+  const [stateSlot, setStateSlot] = useState<SourceSlot>(emptySourceSlot);
+  const [powerSlot, setPowerSlot] = useState<SourceSlot>(emptySourceSlot);
+  const [coverageAcknowledged, setCoverageAcknowledged] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] =
+    useState<ImportSessionConfirmation | null>(null);
 
   const locations = useMemo(
     () =>
@@ -189,152 +384,323 @@ export function ImportWorkflow({
       ),
     [options.controllers, selection.clientId, selection.generatorId],
   );
+  const stateControllers = controllers.filter(
+    (controller) => controller.role === "state",
+  );
+  const powerControllers = controllers.filter(
+    (controller) => controller.role === "power_telemetry",
+  );
   const selectedTimeZone = options.locations.find(
     (location) => location.id === selection.locationId,
   )?.timeZone;
   const contextComplete = Object.values(selection).every(Boolean);
-  const currentKey = file
-    ? [
-        file.name,
-        file.size,
-        file.lastModified,
-        ...Object.values(selection),
-      ].join("|")
-    : "";
-  const currentPreview =
-    result?.status === "preview" && previewKey === currentKey
-      ? result.preview
+  const anyBusy = stateSlot.validating || powerSlot.validating || confirming;
+  const stateFileStatus = sourceStatus(stateSlot);
+  const powerFileStatus = sourceStatus(powerSlot);
+  const statePreview =
+    stateSlot.preview?.dataKind === "state_events" ? stateSlot.preview : null;
+  const powerPreview =
+    powerSlot.preview?.dataKind === "power_readings" ? powerSlot.preview : null;
+  const coverage =
+    statePreview && powerPreview
+      ? compareImportPeriods(
+          { start: statePreview.periodStart, end: statePreview.periodEnd },
+          { start: powerPreview.periodStart, end: powerPreview.periodEnd },
+        )
       : null;
+  const aggregateStatus = aggregateImportSessionStatus({
+    stateStatus: stateFileStatus,
+    powerStatus: powerFileStatus,
+    coverageStatus: coverage?.status,
+    confirming,
+    confirmed: confirmation !== null,
+    failed: sessionError !== null && Boolean(statePreview && powerPreview),
+  });
+  const missingMessage = missingImportSourceMessage(
+    stateFileStatus,
+    powerFileStatus,
+  );
+  const latestStateSource = latestSources.find(
+    (source) =>
+      source.clientId === selection.clientId &&
+      source.locationId === selection.locationId &&
+      source.coldRoomId === selection.coldRoomId &&
+      source.generatorId === selection.generatorId &&
+      source.controllerId === stateSlot.controllerId,
+  );
+  const latestPowerSource = latestSources.find(
+    (source) =>
+      source.clientId === selection.clientId &&
+      source.locationId === selection.locationId &&
+      source.coldRoomId === selection.coldRoomId &&
+      source.generatorId === selection.generatorId &&
+      source.controllerId === powerSlot.controllerId,
+  );
 
-  function invalidatePreview() {
-    setResult(null);
-    setPreviewKey(null);
+  function invalidateSession() {
+    setCoverageAcknowledged(false);
+    setSessionError(null);
+    setConfirmation(null);
   }
 
-  function updateSelection(next: Selection) {
+  function invalidateSlot(slot: SourceSlot): SourceSlot {
+    return {
+      ...slot,
+      preview: null,
+      error: null,
+      confirmed: false,
+    };
+  }
+
+  function replaceSelection(next: Selection) {
     setSelection(next);
-    invalidatePreview();
+    setStateSlot((current) => invalidateSlot(current));
+    setPowerSlot((current) => invalidateSlot(current));
+    invalidateSession();
   }
 
-  function selectFile(selectedFile: File | null) {
-    setFile(selectedFile);
-    invalidatePreview();
+  function selectGenerator(generatorId: string) {
+    const availableControllers = options.controllers.filter(
+      (controller) =>
+        controller.clientId === selection.clientId &&
+        controller.generatorId === generatorId,
+    );
+    const defaultStateController = availableControllers.find(
+      (controller) => controller.role === "state" && controller.isActive,
+    );
+    const defaultPowerController = availableControllers.find(
+      (controller) =>
+        controller.role === "power_telemetry" && controller.isActive,
+    );
 
-    if (!selectedFile) return;
-
-    if (!selectedFile.name.toLocaleLowerCase("pt-BR").endsWith(".xlsx")) {
-      setResult({ status: "error", message: "Selecione um arquivo .xlsx." });
-    } else if (selectedFile.size === 0) {
-      setResult({ status: "error", message: "O arquivo selecionado está vazio." });
-    } else if (selectedFile.size > MAX_IMPORT_FILE_BYTES) {
-      setResult({ status: "error", message: "O arquivo excede o limite de 5 MB." });
-    }
+    setSelection({ ...selection, generatorId });
+    setStateSlot((current) => ({
+      ...invalidateSlot(current),
+      controllerId: defaultStateController?.id ?? "",
+    }));
+    setPowerSlot((current) => ({
+      ...invalidateSlot(current),
+      controllerId: defaultPowerController?.id ?? "",
+    }));
+    invalidateSession();
   }
 
-  async function sendTemporaryFile(
-    action: "preview" | "confirm",
-  ): Promise<ImportActionResult> {
-    if (!file || !contextComplete) {
-      return {
-        status: "error",
-        message: "Selecione a hierarquia completa e um arquivo XLSX.",
-      };
-    }
+  function updateSourceController(source: SourceKey, controllerId: string) {
+    const update = (current: SourceSlot) => ({
+      ...invalidateSlot(current),
+      controllerId,
+    });
+    if (source === "state") setStateSlot(update);
+    else setPowerSlot(update);
+    invalidateSession();
+  }
 
+  function validateFileSelection(file: File | null) {
+    if (!file) return null;
+    if (!file.name.toLocaleLowerCase("pt-BR").endsWith(".xlsx")) {
+      return "Selecione um arquivo .xlsx.";
+    }
+    if (file.size === 0) return "O arquivo selecionado está vazio.";
+    if (file.size > MAX_IMPORT_FILE_BYTES) {
+      return "O arquivo excede o limite de 5 MB.";
+    }
+    return null;
+  }
+
+  function selectFile(source: SourceKey, file: File | null) {
+    const update = (current: SourceSlot): SourceSlot => ({
+      ...current,
+      file,
+      preview: null,
+      error: validateFileSelection(file),
+      confirmed: false,
+    });
+    if (source === "state") setStateSlot(update);
+    else setPowerSlot(update);
+    invalidateSession();
+  }
+
+  function importContext(controllerId: string): ImportContext {
+    return { ...selection, controllerId };
+  }
+
+  async function uploadTemporaryFile(file: File) {
     const objectPath = `${profileId}/${crypto.randomUUID()}.xlsx`;
     const supabase = createClient();
-    const { error: uploadError } = await supabase.storage
+    const { error } = await supabase.storage
       .from(IMPORT_BUCKET)
       .upload(objectPath, file, {
         contentType: XLSX_MIME_TYPE,
         upsert: false,
       });
 
-    if (uploadError) {
-      return {
-        status: "error",
-        message: "Não foi possível enviar o arquivo temporário. Tente novamente.",
-      };
+    if (error) {
+      throw new Error(
+        "Não foi possível enviar o arquivo temporário. Tente novamente.",
+      );
     }
 
-    const context: ImportContext = selection;
-
-    try {
-      if (action === "preview") {
-        return await previewXlsxImport({ objectPath, fileName: file.name, context });
-      }
-
-      if (!currentPreview) {
-        return {
-          status: "error",
-          message: "A prévia não corresponde à seleção atual.",
-        };
-      }
-
-      return await confirmXlsxImport({
-        objectPath,
-        fileName: file.name,
-        context,
-        expectedFileSha256: currentPreview.fileSha256,
-      });
-    } finally {
-      await supabase.storage.from(IMPORT_BUCKET).remove([objectPath]);
-    }
+    return objectPath;
   }
 
-  async function handlePreview() {
-    setBusy("preview");
-    setResult(null);
+  async function removeTemporaryFiles(objectPaths: string[]) {
+    if (objectPaths.length === 0) return;
+    await createClient().storage.from(IMPORT_BUCKET).remove(objectPaths);
+  }
+
+  async function handlePreview(source: SourceKey) {
+    const slot = source === "state" ? stateSlot : powerSlot;
+    const setSlot = source === "state" ? setStateSlot : setPowerSlot;
+    const expectedDataKind =
+      source === "state" ? "state_events" : "power_readings";
+
+    if (!contextComplete || !slot.controllerId || !slot.file) {
+      setSlot((current) => ({
+        ...current,
+        error: "Selecione o contexto, o controlador e o arquivo deste campo.",
+      }));
+      return;
+    }
+
+    setSlot((current) => ({
+      ...current,
+      validating: true,
+      error: null,
+      preview: null,
+      confirmed: false,
+    }));
+    invalidateSession();
+    let objectPath: string | null = null;
+
     try {
-      const response = await sendTemporaryFile("preview");
-      setResult(response);
-      setPreviewKey(response.status === "preview" ? currentKey : null);
-    } catch {
-      setResult({
-        status: "error",
-        message: "A validação foi interrompida. Tente novamente.",
+      objectPath = await uploadTemporaryFile(slot.file);
+      const response = await previewXlsxImport({
+        objectPath,
+        fileName: slot.file.name,
+        context: importContext(slot.controllerId),
+        expectedDataKind,
       });
-      setPreviewKey(null);
+
+      if (response.status !== "preview") {
+        setSlot((current) => ({
+          ...current,
+          preview: null,
+          error:
+            response.status === "error"
+              ? response.message
+              : "A validação retornou um resultado inesperado.",
+        }));
+        return;
+      }
+
+      setSlot((current) => ({
+        ...current,
+        preview: response.preview,
+        error: null,
+      }));
+    } catch (error) {
+      setSlot((current) => ({
+        ...current,
+        preview: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "A validação foi interrompida. Tente novamente.",
+      }));
     } finally {
-      setBusy(null);
+      if (objectPath) await removeTemporaryFiles([objectPath]);
+      setSlot((current) => ({ ...current, validating: false }));
     }
   }
 
   async function handleConfirmation() {
     if (
-      !currentPreview ||
+      !stateSlot.file ||
+      !powerSlot.file ||
+      !statePreview ||
+      !powerPreview ||
+      !stateSlot.controllerId ||
+      !powerSlot.controllerId ||
+      !coverage ||
+      coverage.status === "no_intersection" ||
+      (coverage.status === "partial" && !coverageAcknowledged)
+    ) {
+      return;
+    }
+
+    if (
       !window.confirm(
-        `Confirmar a importação de ${currentPreview.totalRows.toLocaleString("pt-BR")} linha(s)?`,
+        "Confirmar esta atualização conjunta de estado e potência?",
       )
     ) {
       return;
     }
 
-    setBusy("confirm");
-    try {
-      const response = await sendTemporaryFile("confirm");
-      setResult(response);
-      setPreviewKey(null);
+    setConfirming(true);
+    setSessionError(null);
+    setConfirmation(null);
+    const uploadedPaths: string[] = [];
 
-      if (response.status === "confirmed") {
-        router.refresh();
+    try {
+      const uploads = await Promise.allSettled([
+        uploadTemporaryFile(stateSlot.file),
+        uploadTemporaryFile(powerSlot.file),
+      ]);
+      for (const upload of uploads) {
+        if (upload.status === "fulfilled") uploadedPaths.push(upload.value);
       }
-    } catch {
-      setResult({
-        status: "error",
-        message: "A confirmação foi interrompida. Tente novamente.",
+      const failedUpload = uploads.find(
+        (upload): upload is PromiseRejectedResult =>
+          upload.status === "rejected",
+      );
+      if (failedUpload) throw failedUpload.reason;
+
+      const response = await confirmImportSession({
+        context: selection,
+        state: {
+          objectPath: uploadedPaths[0],
+          fileName: stateSlot.file.name,
+          context: importContext(stateSlot.controllerId),
+          expectedFileSha256: statePreview.fileSha256,
+          expectedDataKind: "state_events",
+        },
+        power: {
+          objectPath: uploadedPaths[1],
+          fileName: powerSlot.file.name,
+          context: importContext(powerSlot.controllerId),
+          expectedFileSha256: powerPreview.fileSha256,
+          expectedDataKind: "power_readings",
+        },
+        coverageWarningAcknowledged: coverageAcknowledged,
       });
-      setPreviewKey(null);
+
+      if (response.status === "error") {
+        setSessionError(response.message);
+        return;
+      }
+
+      setConfirmation(response.confirmation);
+      setStateSlot((current) => ({ ...current, confirmed: true }));
+      setPowerSlot((current) => ({ ...current, confirmed: true }));
+      router.refresh();
+    } catch (error) {
+      setSessionError(
+        error instanceof Error
+          ? error.message
+          : "A confirmação foi interrompida. Tente novamente.",
+      );
     } finally {
-      setBusy(null);
+      await removeTemporaryFiles(uploadedPaths);
+      setConfirming(false);
     }
   }
 
-  const fileIsValid =
-    file !== null &&
-    file.size > 0 &&
-    file.size <= MAX_IMPORT_FILE_BYTES &&
-    file.name.toLocaleLowerCase("pt-BR").endsWith(".xlsx");
+  const confirmationDisabled =
+    !coverage ||
+    coverage.status === "no_intersection" ||
+    (coverage.status === "partial" && !coverageAcknowledged) ||
+    !["valid", "already_imported", "confirmed"].includes(stateFileStatus) ||
+    !["valid", "already_imported", "confirmed"].includes(powerFileStatus);
 
   return (
     <div className="import-workflow">
@@ -342,19 +708,19 @@ export function ImportWorkflow({
         <div className="section-title-row">
           <div>
             <p className="eyebrow">Etapa 1</p>
-            <h2 id="import-selection-title">Contexto e arquivo</h2>
+            <h2 id="import-selection-title">Contexto da atualização</h2>
           </div>
-          <p>XLSX de até 5 MB e 25.000 linhas</p>
+          <p>Cliente → Unidade → Câmara → Gerador</p>
         </div>
 
         <div className="import-form">
-          <div className="import-selector-grid">
+          <div className="import-selector-grid context-selector-grid">
             <label>
               Cliente
               <select
-                disabled={busy !== null}
+                disabled={anyBusy}
                 onChange={(event) =>
-                  updateSelection({
+                  replaceSelection({
                     ...emptySelection,
                     clientId: event.target.value,
                   })
@@ -372,9 +738,9 @@ export function ImportWorkflow({
             <label>
               Unidade
               <select
-                disabled={!selection.clientId || busy !== null}
+                disabled={!selection.clientId || anyBusy}
                 onChange={(event) =>
-                  updateSelection({
+                  replaceSelection({
                     ...emptySelection,
                     clientId: selection.clientId,
                     locationId: event.target.value,
@@ -393,9 +759,9 @@ export function ImportWorkflow({
             <label>
               Câmara
               <select
-                disabled={!selection.locationId || busy !== null}
+                disabled={!selection.locationId || anyBusy}
                 onChange={(event) =>
-                  updateSelection({
+                  replaceSelection({
                     ...emptySelection,
                     clientId: selection.clientId,
                     locationId: selection.locationId,
@@ -415,16 +781,8 @@ export function ImportWorkflow({
             <label>
               Gerador
               <select
-                disabled={!selection.coldRoomId || busy !== null}
-                onChange={(event) =>
-                  updateSelection({
-                    ...emptySelection,
-                    clientId: selection.clientId,
-                    locationId: selection.locationId,
-                    coldRoomId: selection.coldRoomId,
-                    generatorId: event.target.value,
-                  })
-                }
+                disabled={!selection.coldRoomId || anyBusy}
+                onChange={(event) => selectGenerator(event.target.value)}
                 value={selection.generatorId}
               >
                 <option value="">Selecione</option>
@@ -435,291 +793,381 @@ export function ImportWorkflow({
                 ))}
               </select>
             </label>
-            <label>
-              Controlador
-              <select
-                disabled={!selection.generatorId || busy !== null}
-                onChange={(event) =>
-                  updateSelection({
-                    ...selection,
-                    controllerId: event.target.value,
-                  })
-                }
-                value={selection.controllerId}
-              >
-                <option value="">Selecione</option>
-                {controllers.map((controller) => (
-                  <option key={controller.id} value={controller.id}>
-                    {controllerOptionLabel(
-                      controller,
-                      selectedTimeZone,
-                    )}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
-
-          <label className="file-picker">
-            <span>Arquivo XLSX do controlador</span>
-            <input
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              disabled={busy !== null}
-              onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
-              type="file"
-            />
-            <small>
-              {file
-                ? `${file.name} · ${formatFileSize(file.size)}`
-                : "O formato de estado ou potência será detectado pelos cabeçalhos."}
-            </small>
-          </label>
-
-          {result?.status === "error" ? (
-            <p className="form-message error" role="alert">
-              {result.message}
-            </p>
-          ) : null}
-
-          {result?.status === "confirmed" ? (
-            <p className="form-message success" role="status">
-              {result.confirmation.alreadyConfirmed
-                ? "Este arquivo já havia sido confirmado neste contexto. Nenhum registro foi duplicado."
-                : `Importação confirmada: ${result.confirmation.insertedRows.toLocaleString("pt-BR")} registro(s) inserido(s) e ${result.confirmation.duplicateRows.toLocaleString("pt-BR")} ignorado(s) como duplicata.`}
-            </p>
-          ) : null}
-
-          <button
-            className="primary-button import-action"
-            disabled={!contextComplete || !fileIsValid || busy !== null}
-            onClick={handlePreview}
-            type="button"
-          >
-            {busy === "preview" ? "Validando arquivo..." : "Validar e gerar prévia"}
-          </button>
         </div>
       </section>
 
-      {currentPreview ? (
-        <section className="import-panel" aria-labelledby="import-preview-title">
-          <div className="section-title-row">
+      {selection.generatorId ? (
+        <section aria-labelledby="import-sources-title">
+          <div className="import-section-heading">
             <div>
               <p className="eyebrow">Etapa 2</p>
-              <h2 id="import-preview-title">Prévia transitória</h2>
+              <h2 id="import-sources-title">Arquivos complementares</h2>
             </div>
-            <p>
-              Aba “{currentPreview.sheetName}” · hash {currentPreview.fileSha256.slice(0, 10)}…
-            </p>
+            <p>Dois XLSX independentes, de até 5 MB e 25.000 linhas cada.</p>
           </div>
 
-          <dl className="import-summary-grid">
-            <div>
-              <dt>Linhas válidas</dt>
-              <dd>{currentPreview.totalRows.toLocaleString("pt-BR")}</dd>
-            </div>
-            <div>
-              <dt>Já existentes</dt>
-              <dd>
-                {currentPreview.existingDuplicateRows.toLocaleString("pt-BR")}
-              </dd>
-            </div>
-            <div>
-              <dt>Repetidas no arquivo</dt>
-              <dd>{currentPreview.repeatedFileRows.toLocaleString("pt-BR")}</dd>
-            </div>
-            {currentPreview.dataKind === "state_events" ? (
-              <div>
-                <dt>Origens desconhecidas</dt>
-                <dd>{currentPreview.unknownSourceRows.toLocaleString("pt-BR")}</dd>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <dt>Dispositivo</dt>
-                  <dd>{currentPreview.deviceName}</dd>
-                </div>
-                <div>
-                  <dt>Potência mínima</dt>
-                  <dd>{formatPower(currentPreview.minPowerW)}</dd>
-                </div>
-                <div>
-                  <dt>Potência máxima</dt>
-                  <dd>{formatPower(currentPreview.maxPowerW)}</dd>
-                </div>
-                <div>
-                  <dt>Classificação</dt>
-                  <dd>
-                    {currentPreview.onRows} ligada(s) · {currentPreview.offRows} desligada(s) ·{" "}
-                    {currentPreview.hysteresisRows} em histerese
-                  </dd>
-                </div>
-              </>
-            )}
-            <div>
-              <dt>Primeiro evento</dt>
-              <dd>
-                {formatDateTime(
-                  currentPreview.periodStart,
-                  currentPreview.timeZone,
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt>Último evento</dt>
-              <dd>
-                {formatDateTime(
-                  currentPreview.periodEnd,
-                  currentPreview.timeZone,
-                )}
-              </dd>
-            </div>
-          </dl>
-
-          <div className="table-wrap">
-            {currentPreview.dataKind === "state_events" ? (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Linha</th>
-                    <th>Tempo original</th>
-                    <th>Horário interpretado</th>
-                    <th>Operação</th>
-                    <th>Acionado por</th>
-                    <th>Classificação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentPreview.sample.map((row) => (
-                    <tr key={row.rowNumber}>
-                      <td>{row.rowNumber}</td>
-                      <td>{row.occurredAtRaw}</td>
-                      <td>{formatDateTime(row.occurredAt, currentPreview.timeZone)}</td>
-                      <td title={`Original: ${row.operationRaw}`}>
-                        {operationLabel(row.operation)}
-                      </td>
-                      <td>{row.sourceOriginal || "(vazio)"}</td>
-                      <td>{classificationLabel(row.sourceClassification)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Linha</th>
-                    <th>Tempo original</th>
-                    <th>Horário interpretado</th>
-                    <th>Potência</th>
-                    <th>Estado elétrico</th>
-                    <th>Dispositivo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentPreview.sample.map((row) => (
-                    <tr key={row.rowNumber}>
-                      <td>{row.rowNumber}</td>
-                      <td>{row.occurredAtRaw}</td>
-                      <td>{formatDateTime(row.occurredAt, currentPreview.timeZone)}</td>
-                      <td title={`Original: ${row.powerRaw}`}>{formatPower(row.powerW)}</td>
-                      <td>{electricalStateLabel(row.electricalState)}</td>
-                      <td>{row.deviceName}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <div className="import-confirmation-bar">
-            <p>
-              O arquivo será enviado e validado novamente. Apenas a confirmação
-              cria o lote e os registros técnicos.
-            </p>
-            <button
-              className="primary-button"
-              disabled={busy !== null}
-              onClick={handleConfirmation}
-              type="button"
+          <div className="import-source-grid">
+            <article
+              className="import-source-card state-source-card"
+              aria-labelledby="state-source-title"
             >
-              {busy === "confirm" ? "Confirmando..." : "Confirmar importação"}
-            </button>
+              <header className="import-source-header">
+                <span className="source-number" aria-hidden="true">
+                  01
+                </span>
+                <div>
+                  <p className="source-kicker">Estado liga/desliga</p>
+                  <h3 id="state-source-title">
+                    Horários programados — Liga/desliga
+                  </h3>
+                  <p>Eventos Tempo, Operação e Acionado por.</p>
+                </div>
+              </header>
+
+              <div className="import-source-body">
+                <label className="source-controller-select">
+                  Controlador de estado
+                  <select
+                    disabled={anyBusy}
+                    onChange={(event) =>
+                      updateSourceController("state", event.target.value)
+                    }
+                    value={stateSlot.controllerId}
+                  >
+                    <option value="">Selecione</option>
+                    {stateControllers.map((controller) => (
+                      <option key={controller.id} value={controller.id}>
+                        {controllerOptionLabel(controller, selectedTimeZone)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <LatestSourceSummary
+                  source={latestStateSource}
+                  timeZone={selectedTimeZone}
+                />
+
+                <label className="file-picker">
+                  <span>Selecionar XLSX de horários</span>
+                  <input
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    disabled={anyBusy}
+                    onChange={(event) =>
+                      selectFile("state", event.target.files?.[0] ?? null)
+                    }
+                    type="file"
+                  />
+                  <small>
+                    {stateSlot.file
+                      ? `${stateSlot.file.name} · ${formatFileSize(
+                          stateSlot.file.size,
+                        )}`
+                      : "Cabeçalhos esperados: Tempo, Operação e Acionado por."}
+                  </small>
+                </label>
+
+                <div className="source-status-row">
+                  <span
+                    className={`source-file-status ${stateFileStatus}`}
+                    role="status"
+                  >
+                    {sourceStatusLabels[stateFileStatus]}
+                  </span>
+                  {statePreview ? (
+                    <span>
+                      {formatDateTime(
+                        statePreview.periodStart,
+                        statePreview.timeZone,
+                      )}{" "}
+                      —{" "}
+                      {formatDateTime(
+                        statePreview.periodEnd,
+                        statePreview.timeZone,
+                      )}
+                    </span>
+                  ) : null}
+                </div>
+
+                {stateSlot.error ? (
+                  <p className="form-message error" role="alert">
+                    {stateSlot.error}
+                  </p>
+                ) : null}
+
+                <button
+                  className="secondary-button source-validate-button"
+                  disabled={
+                    !contextComplete ||
+                    !stateSlot.controllerId ||
+                    !stateSlot.file ||
+                    Boolean(validateFileSelection(stateSlot.file)) ||
+                    anyBusy
+                  }
+                  onClick={() => handlePreview("state")}
+                  type="button"
+                >
+                  {stateSlot.validating
+                    ? "Validando horários..."
+                    : "Validar arquivo de estado"}
+                </button>
+
+                {stateSlot.preview ? (
+                  <StatePreview preview={stateSlot.preview} />
+                ) : null}
+              </div>
+            </article>
+
+            <article
+              className="import-source-card power-source-card"
+              aria-labelledby="power-source-title"
+            >
+              <header className="import-source-header">
+                <span className="source-number" aria-hidden="true">
+                  02
+                </span>
+                <div>
+                  <p className="source-kicker">Telemetria elétrica</p>
+                  <h3 id="power-source-title">Potência consumida</h3>
+                  <p>Leituras técnicas de potência em watts.</p>
+                </div>
+              </header>
+
+              <div className="import-source-body">
+                <label className="source-controller-select">
+                  Controlador de telemetria
+                  <select
+                    disabled={anyBusy}
+                    onChange={(event) =>
+                      updateSourceController("power", event.target.value)
+                    }
+                    value={powerSlot.controllerId}
+                  >
+                    <option value="">Selecione</option>
+                    {powerControllers.map((controller) => (
+                      <option key={controller.id} value={controller.id}>
+                        {controllerOptionLabel(controller, selectedTimeZone)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <LatestSourceSummary
+                  source={latestPowerSource}
+                  timeZone={selectedTimeZone}
+                />
+
+                <label className="file-picker">
+                  <span>Selecionar XLSX de potência</span>
+                  <input
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    disabled={anyBusy}
+                    onChange={(event) =>
+                      selectFile("power", event.target.files?.[0] ?? null)
+                    }
+                    type="file"
+                  />
+                  <small>
+                    {powerSlot.file
+                      ? `${powerSlot.file.name} · ${formatFileSize(
+                          powerSlot.file.size,
+                        )}`
+                      : "Formato técnico detectado pelos oito cabeçalhos e pelo Device ID."}
+                  </small>
+                </label>
+
+                <div className="source-status-row">
+                  <span
+                    className={`source-file-status ${powerFileStatus}`}
+                    role="status"
+                  >
+                    {sourceStatusLabels[powerFileStatus]}
+                  </span>
+                  {powerPreview ? (
+                    <span>
+                      {formatDateTime(
+                        powerPreview.periodStart,
+                        powerPreview.timeZone,
+                      )}{" "}
+                      —{" "}
+                      {formatDateTime(
+                        powerPreview.periodEnd,
+                        powerPreview.timeZone,
+                      )}
+                    </span>
+                  ) : null}
+                </div>
+
+                {powerSlot.error ? (
+                  <p className="form-message error" role="alert">
+                    {powerSlot.error}
+                  </p>
+                ) : null}
+
+                <button
+                  className="secondary-button source-validate-button"
+                  disabled={
+                    !contextComplete ||
+                    !powerSlot.controllerId ||
+                    !powerSlot.file ||
+                    Boolean(validateFileSelection(powerSlot.file)) ||
+                    anyBusy
+                  }
+                  onClick={() => handlePreview("power")}
+                  type="button"
+                >
+                  {powerSlot.validating
+                    ? "Validando potência..."
+                    : "Validar arquivo de potência"}
+                </button>
+
+                {powerSlot.preview ? (
+                  <PowerPreview preview={powerSlot.preview} />
+                ) : null}
+              </div>
+            </article>
           </div>
         </section>
       ) : null}
 
-      <section className="import-panel" aria-labelledby="import-history-title">
-        <div className="section-title-row">
-          <div>
-            <p className="eyebrow">Histórico</p>
-            <h2 id="import-history-title">Importações recentes</h2>
+      {selection.generatorId ? (
+        <section
+          className="import-panel session-compatibility-panel"
+          aria-labelledby="session-compatibility-title"
+        >
+          <div className="section-title-row">
+            <div>
+              <p className="eyebrow">Etapa 3</p>
+              <h2 id="session-compatibility-title">
+                Compatibilidade da sessão
+              </h2>
+            </div>
+            <span className={`session-status ${aggregateStatus}`} role="status">
+              {aggregateStatus === "incomplete" && "Atualização incompleta"}
+              {aggregateStatus === "validating" && "Validando fontes"}
+              {aggregateStatus === "ready" && "Pronta para confirmar"}
+              {aggregateStatus === "ready_with_warning" &&
+                "Pronta com aviso"}
+              {aggregateStatus === "confirming" && "Confirmando atualização"}
+              {aggregateStatus === "confirmed" && "Atualização confirmada"}
+              {aggregateStatus === "failed" && "Confirmação bloqueada"}
+            </span>
           </div>
-        </div>
-        {recentBatches.length === 0 ? (
-          <p className="empty-state">Nenhuma importação registrada ainda.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Arquivo</th>
-                  <th>Tipo</th>
-                  <th>Contexto</th>
-                  <th>Responsável</th>
-                  <th>Período</th>
-                  <th>Status</th>
-                  <th>Resultado</th>
-                  <th>Recebido em</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentBatches.map((batch) => (
-                  <tr key={batch.id}>
-                    <td>{batch.fileName}</td>
-                    <td>{controllerRoleLabel(batch.dataKind)}</td>
-                    <td>
-                      {batch.clientName} · {batch.locationName} · {batch.coldRoomName}
-                      <small className="table-secondary-line">
-                        {batch.generatorName} · {batch.controllerName}
-                      </small>
-                    </td>
-                    <td>{batch.authorName}</td>
-                    <td>
-                      {batch.periodStart
-                        ? `${formatDateTime(batch.periodStart)} — ${formatDateTime(batch.periodEnd)}`
-                        : "—"}
-                    </td>
-                    <td>
-                      <span className={`import-status ${batch.status}`}>
-                        {batchStatusLabel(batch.status)}
-                      </span>
-                    </td>
-                    <td>
-                      {batch.status === "failed" ? (
-                        <span className="failure-detail">
-                          {batch.errorMessage ?? "Falha sem mensagem registrada."}
-                        </span>
-                      ) : (
-                        <span>
-                          {batch.insertedRows.toLocaleString("pt-BR")} inserida(s) ·{" "}
-                          {batch.duplicateRows.toLocaleString("pt-BR")} duplicada(s)
-                          {batch.dataKind === "state_events"
-                            ? ` · ${batch.unknownSourceRows.toLocaleString("pt-BR")} desconhecida(s)`
-                            : ""}
-                          <small className="table-secondary-line">
-                            {batch.totalRows.toLocaleString("pt-BR")} linha(s) no total
-                          </small>
-                        </span>
-                      )}
-                    </td>
-                    <td>{formatDateTime(batch.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="session-compatibility-body">
+            {missingMessage ? (
+              <p className="session-guidance">{missingMessage}</p>
+            ) : null}
+
+            {statePreview && powerPreview ? (
+              <dl className="session-period-grid">
+                <div>
+                  <dt>Período de estado</dt>
+                  <dd>
+                    {formatDateTime(statePreview.periodStart, selectedTimeZone)} —{" "}
+                    {formatDateTime(statePreview.periodEnd, selectedTimeZone)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Período de potência</dt>
+                  <dd>
+                    {formatDateTime(powerPreview.periodStart, selectedTimeZone)} —{" "}
+                    {formatDateTime(powerPreview.periodEnd, selectedTimeZone)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Compatibilidade</dt>
+                  <dd>
+                    {coverage?.status === "full" && "Cobertura completa"}
+                    {coverage?.status === "partial" && "Cobertura parcial"}
+                    {coverage?.status === "no_intersection" &&
+                      "Sem interseção temporal"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Interseção</dt>
+                  <dd>
+                    {coverage?.intersectionStart
+                      ? `${formatDateTime(
+                          coverage.intersectionStart,
+                          selectedTimeZone,
+                        )} — ${formatDateTime(
+                          coverage.intersectionEnd,
+                          selectedTimeZone,
+                        )}`
+                      : "—"}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+
+            {coverage?.status === "partial" ? (
+              <div className="coverage-warning" role="alert">
+                <div>
+                  <strong>Cobertura parcial de potência</strong>
+                  <p>
+                    Trecho do período de estado sem cobertura: {" "}
+                    {coverageGapText(coverage, selectedTimeZone)}. Este aviso não
+                    indica falha do equipamento nem ausência de aplicação.
+                  </p>
+                </div>
+                <label>
+                  <input
+                    checked={coverageAcknowledged}
+                    disabled={confirming}
+                    onChange={(event) =>
+                      setCoverageAcknowledged(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  Estou ciente da cobertura parcial e desejo confirmar.
+                </label>
+              </div>
+            ) : null}
+
+            {coverage?.status === "no_intersection" ? (
+              <p className="form-message error" role="alert">
+                Os períodos não possuem interseção. Selecione arquivos da mesma
+                atualização operacional.
+              </p>
+            ) : null}
+
+            {sessionError ? (
+              <p className="form-message error" role="alert">
+                {sessionError}
+              </p>
+            ) : null}
+
+            {confirmation ? (
+              <p className="form-message success" role="status">
+                {confirmation.alreadyConfirmed
+                  ? "Esta mesma sessão já havia sido confirmada. Nenhum lote, evento ou leitura foi duplicado."
+                  : `Atualização confirmada: ${confirmation.stateBatch.insertedRows.toLocaleString(
+                      "pt-BR",
+                    )} evento(s) de estado e ${confirmation.powerBatch.insertedRows.toLocaleString(
+                      "pt-BR",
+                    )} leitura(s) de potência inseridos.`}
+              </p>
+            ) : null}
           </div>
-        )}
-      </section>
+
+          <div className="import-confirmation-bar">
+            <p>
+              Na confirmação, os dois arquivos serão enviados, validados e
+              processados novamente dentro de uma única transação.
+            </p>
+            <button
+              className="primary-button"
+              disabled={confirmationDisabled || anyBusy}
+              onClick={handleConfirmation}
+              type="button"
+            >
+              {confirming ? "Confirmando atualização..." : "Confirmar atualização"}
+            </button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

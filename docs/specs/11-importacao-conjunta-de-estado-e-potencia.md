@@ -1,6 +1,8 @@
 # Spec 11 — Importação conjunta de estado e potência
 
-**Status:** proposta para aprovação.
+**Status:** concluída em 03/09/2026.
+
+**Aprovação do produto:** 03/09/2026.
 
 **Tipo:** evolução da experiência administrativa posterior à spec 10.
 

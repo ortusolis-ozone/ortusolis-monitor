@@ -27,8 +27,8 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 7 | [Painel administrativo](./07-painel-administrativo.md) | Operação completa pela Ortusolis | Concluída | Pendente de implementação |
 | 8 | [Portal do cliente](./08-portal-do-cliente.md) | Consulta segura e responsiva dos estados públicos | Concluída | Pendente de implementação |
 | 9 | [Qualidade e entrega](./09-qualidade-e-entrega.md) | Testes, segurança e critérios para publicação | Pendente de conclusão | Pendente de implementação |
-| 10 | [Duplo controlador e telemetria de potência](./10-duplo-controlador-e-telemetria-de-potencia.md) | Dois sinais por gerador, importação de potência e evidência sanitizada | Não se aplica | Aprovada; desenvolvimento não iniciado |
-| 11 | [Importação conjunta de estado e potência](./11-importacao-conjunta-de-estado-e-potencia.md) | Dois campos visíveis, confirmação conjunta e histórico agrupado | Não se aplica | Proposta para aprovação |
+| 10 | [Duplo controlador e telemetria de potência](./10-duplo-controlador-e-telemetria-de-potencia.md) | Dois sinais por gerador, importação de potência e evidência sanitizada | Não se aplica | Concluída |
+| 11 | [Importação conjunta de estado e potência](./11-importacao-conjunta-de-estado-e-potencia.md) | Dois campos visíveis, confirmação conjunta e histórico agrupado | Não se aplica | Concluída |
 | 12 | [Potência nominal e alerta de redução operacional](./12-potencia-nominal-e-alerta-de-reducao-operacional.md) | Mínimo automático de 85%, diagnóstico técnico e alerta qualitativo | Não se aplica | Proposta para aprovação |
 
 ## Marcos
@@ -37,8 +37,8 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 2. **Núcleo operacional:** specs 4 a 6.
 3. **Produto utilizável:** specs 7 e 8.
 4. **Liberação do MVP:** spec 9.
-5. **Evolução de telemetria:** spec 10 aprovada, com desenvolvimento ainda não iniciado.
-6. **Operação conjunta das duas fontes:** spec 11 proposta para aprovação.
+5. **Evolução de telemetria:** spec 10 concluída.
+6. **Operação conjunta das duas fontes:** spec 11 concluída.
 7. **Avaliação da potência operacional:** spec 12 proposta para aprovação.
 
 Cada spec deve ser detalhada imediatamente antes de sua implementação. Uma etapa só avança quando os critérios de aceite da anterior estiverem atendidos.

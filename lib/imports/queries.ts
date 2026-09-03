@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   ImportBatchListItem,
   ImportFormOptions,
+  ImportSessionBatchSummary,
+  ImportSessionListItem,
+  LatestImportSource,
 } from "./types";
 
 function assertData<T>(
@@ -30,10 +33,31 @@ function importDataKind(value: string): "state_events" | "power_readings" {
   throw new Error("O tipo de uma importação está inválido.");
 }
 
+function sessionStatus(value: string): "confirmed" | "failed" {
+  if (value === "confirmed" || value === "failed") return value;
+  throw new Error("O estado de uma sessão de importação está inválido.");
+}
+
+function coverageStatus(
+  value: string,
+): "full" | "partial" | "no_intersection" | "unknown" {
+  if (
+    value === "full" ||
+    value === "partial" ||
+    value === "no_intersection" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+  throw new Error("A cobertura de uma sessão de importação está inválida.");
+}
+
 export async function getImportPageData(): Promise<{
   profileId: string;
   options: ImportFormOptions;
-  recentBatches: ImportBatchListItem[];
+  latestSources: LatestImportSource[];
+  recentSessions: ImportSessionListItem[];
+  legacyBatches: ImportBatchListItem[];
 }> {
   const profile = await requireMaster();
   const supabase = await createClient();
@@ -46,6 +70,9 @@ export async function getImportPageData(): Promise<{
     controllersResponse,
     profilesResponse,
     batchesResponse,
+    latestSourcesResponse,
+    sessionsResponse,
+    sessionLinksResponse,
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -82,7 +109,22 @@ export async function getImportPageData(): Promise<{
         "id, data_kind, file_name, status, created_at, confirmed_at, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows, error_message, client_id, location_id, cold_room_id, generator_id, controller_id, created_by",
       )
       .order("created_at", { ascending: false })
+      .limit(24),
+    supabase
+      .from("latest_confirmed_import_batches")
+      .select(
+        "id, client_id, location_id, cold_room_id, generator_id, controller_id, data_kind, file_name, confirmed_at, period_start, period_end, total_rows, created_by",
+      ),
+    supabase
+      .from("import_sessions")
+      .select(
+        "id, status, coverage_status, coverage_warning_acknowledged, error_message, created_at, confirmed_at, state_period_start, state_period_end, power_period_start, power_period_end, intersection_start, intersection_end, client_id, location_id, cold_room_id, generator_id, state_controller_id, power_controller_id, state_batch_id, power_batch_id, created_by, failed_state_file_name, failed_power_file_name",
+      )
+      .order("created_at", { ascending: false })
       .limit(12),
+    supabase
+      .from("import_sessions")
+      .select("state_batch_id, power_batch_id"),
   ]);
 
   const clients = assertData(
@@ -124,6 +166,45 @@ export async function getImportPageData(): Promise<{
     batchesResponse.data,
     batchesResponse.error,
     "o histórico de importações",
+  );
+  const latestStoredSources = assertData(
+    latestSourcesResponse.data,
+    latestSourcesResponse.error,
+    "as últimas confirmações das fontes",
+  );
+  const sessions = assertData(
+    sessionsResponse.data,
+    sessionsResponse.error,
+    "as sessões recentes de importação",
+  );
+  const sessionLinks = assertData(
+    sessionLinksResponse.data,
+    sessionLinksResponse.error,
+    "os vínculos das sessões de importação",
+  );
+
+  const recentSessionBatchIds = [
+    ...new Set(
+      sessions.flatMap((session) =>
+        [session.state_batch_id, session.power_batch_id].filter(
+          (id): id is string => id !== null,
+        ),
+      ),
+    ),
+  ];
+  const sessionBatchesResponse =
+    recentSessionBatchIds.length > 0
+      ? await supabase
+          .from("import_batches")
+          .select(
+            "id, file_name, controller_id, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows",
+          )
+          .in("id", recentSessionBatchIds)
+      : { data: [], error: null };
+  const sessionBatches = assertData(
+    sessionBatchesResponse.data,
+    sessionBatchesResponse.error,
+    "os lotes das sessões recentes",
   );
   const activeClients = clients.filter((client) => client.is_active);
   const activeClientIds = new Set(activeClients.map((client) => client.id));
@@ -200,6 +281,37 @@ export async function getImportPageData(): Promise<{
   const profileNames = new Map(
     profiles.map((storedProfile) => [storedProfile.id, storedProfile.full_name]),
   );
+  const sessionBatchById = new Map(
+    sessionBatches.map((batch) => [batch.id, batch]),
+  );
+  const associatedBatchIds = new Set(
+    sessionLinks.flatMap((session) =>
+      [session.state_batch_id, session.power_batch_id].filter(
+        (id): id is string => id !== null,
+      ),
+    ),
+  );
+
+  function sessionBatchSummary(
+    batchId: string | null,
+  ): ImportSessionBatchSummary | null {
+    if (!batchId) return null;
+    const batch = sessionBatchById.get(batchId);
+    if (!batch) return null;
+
+    return {
+      id: batch.id,
+      fileName: batch.file_name,
+      controllerName:
+        controllerNames.get(batch.controller_id) ?? "Controlador indisponível",
+      periodStart: batch.period_start,
+      periodEnd: batch.period_end,
+      totalRows: batch.total_rows,
+      insertedRows: batch.inserted_rows,
+      duplicateRows: batch.duplicate_rows,
+      unknownSourceRows: batch.unknown_source_rows,
+    };
+  }
 
   return {
     profileId: profile.id,
@@ -223,7 +335,80 @@ export async function getImportPageData(): Promise<{
       generators: generatorOptions,
       controllers: controllerOptions,
     },
-    recentBatches: batches.map((batch) => ({
+    latestSources: latestStoredSources.flatMap((source) => {
+      if (
+        !source.id ||
+        !source.client_id ||
+        !source.location_id ||
+        !source.cold_room_id ||
+        !source.generator_id ||
+        !source.controller_id ||
+        !source.data_kind ||
+        !source.file_name ||
+        !source.confirmed_at ||
+        !source.period_start ||
+        !source.period_end ||
+        source.total_rows === null ||
+        !source.created_by
+      ) {
+        return [];
+      }
+
+      return [{
+        batchId: source.id,
+        clientId: source.client_id,
+        locationId: source.location_id,
+        coldRoomId: source.cold_room_id,
+        generatorId: source.generator_id,
+        controllerId: source.controller_id,
+        dataKind: importDataKind(source.data_kind),
+        fileName: source.file_name,
+        confirmedAt: source.confirmed_at,
+        periodStart: source.period_start,
+        periodEnd: source.period_end,
+        totalRows: source.total_rows,
+        authorName:
+          profileNames.get(source.created_by) ?? "Usuário indisponível",
+      }];
+    }),
+    recentSessions: sessions.map((session) => ({
+      id: session.id,
+      status: sessionStatus(session.status),
+      coverageStatus: coverageStatus(session.coverage_status),
+      coverageWarningAcknowledged: session.coverage_warning_acknowledged,
+      errorMessage: session.error_message,
+      createdAt: session.created_at,
+      confirmedAt: session.confirmed_at,
+      statePeriodStart: session.state_period_start,
+      statePeriodEnd: session.state_period_end,
+      powerPeriodStart: session.power_period_start,
+      powerPeriodEnd: session.power_period_end,
+      intersectionStart: session.intersection_start,
+      intersectionEnd: session.intersection_end,
+      clientName:
+        clientNames.get(session.client_id) ?? "Cliente indisponível",
+      locationName:
+        locationNames.get(session.location_id) ?? "Unidade indisponível",
+      coldRoomName:
+        roomNames.get(session.cold_room_id) ?? "Câmara indisponível",
+      generatorName:
+        generatorNames.get(session.generator_id) ?? "Gerador indisponível",
+      stateControllerName:
+        controllerNames.get(session.state_controller_id) ??
+        "Controlador indisponível",
+      powerControllerName:
+        controllerNames.get(session.power_controller_id) ??
+        "Controlador indisponível",
+      authorName:
+        profileNames.get(session.created_by) ?? "Usuário indisponível",
+      stateBatch: sessionBatchSummary(session.state_batch_id),
+      powerBatch: sessionBatchSummary(session.power_batch_id),
+      failedStateFileName: session.failed_state_file_name,
+      failedPowerFileName: session.failed_power_file_name,
+    })),
+    legacyBatches: batches
+      .filter((batch) => !associatedBatchIds.has(batch.id))
+      .map((batch) => ({
       id: batch.id,
       fileName: batch.file_name,
       status:
@@ -250,6 +435,6 @@ export async function getImportPageData(): Promise<{
       authorName:
         profileNames.get(batch.created_by) ?? "Usuário indisponível",
       dataKind: importDataKind(batch.data_kind),
-    })),
+      })),
   };
 }

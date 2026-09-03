@@ -554,6 +554,164 @@ export type Database = {
           },
         ]
       }
+      import_sessions: {
+        Row: {
+          client_id: string
+          cold_room_id: string
+          confirmed_at: string | null
+          coverage_status: string
+          coverage_warning_acknowledged: boolean
+          created_at: string
+          created_by: string
+          error_message: string | null
+          failed_power_file_name: string | null
+          failed_power_file_sha256: string | null
+          failed_state_file_name: string | null
+          failed_state_file_sha256: string | null
+          generator_id: string
+          id: string
+          intersection_end: string | null
+          intersection_start: string | null
+          location_id: string
+          power_batch_id: string | null
+          power_controller_id: string
+          power_period_end: string | null
+          power_period_start: string | null
+          state_batch_id: string | null
+          state_controller_id: string
+          state_period_end: string | null
+          state_period_start: string | null
+          status: string
+        }
+        Insert: {
+          client_id: string
+          cold_room_id: string
+          confirmed_at?: string | null
+          coverage_status: string
+          coverage_warning_acknowledged?: boolean
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          failed_power_file_name?: string | null
+          failed_power_file_sha256?: string | null
+          failed_state_file_name?: string | null
+          failed_state_file_sha256?: string | null
+          generator_id: string
+          id?: string
+          intersection_end?: string | null
+          intersection_start?: string | null
+          location_id: string
+          power_batch_id?: string | null
+          power_controller_id: string
+          power_period_end?: string | null
+          power_period_start?: string | null
+          state_batch_id?: string | null
+          state_controller_id: string
+          state_period_end?: string | null
+          state_period_start?: string | null
+          status: string
+        }
+        Update: {
+          client_id?: string
+          cold_room_id?: string
+          confirmed_at?: string | null
+          coverage_status?: string
+          coverage_warning_acknowledged?: boolean
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          failed_power_file_name?: string | null
+          failed_power_file_sha256?: string | null
+          failed_state_file_name?: string | null
+          failed_state_file_sha256?: string | null
+          generator_id?: string
+          id?: string
+          intersection_end?: string | null
+          intersection_start?: string | null
+          location_id?: string
+          power_batch_id?: string | null
+          power_controller_id?: string
+          power_period_end?: string | null
+          power_period_start?: string | null
+          state_batch_id?: string | null
+          state_controller_id?: string
+          state_period_end?: string | null
+          state_period_start?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_sessions_cold_room_hierarchy_fkey"
+            columns: ["cold_room_id", "client_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "cold_rooms"
+            referencedColumns: ["id", "client_id", "location_id"]
+          },
+          {
+            foreignKeyName: "import_sessions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_sessions_generator_client_fkey"
+            columns: ["generator_id", "client_id"]
+            isOneToOne: false
+            referencedRelation: "generators"
+            referencedColumns: ["id", "client_id"]
+          },
+          {
+            foreignKeyName: "import_sessions_power_batch_id_fkey"
+            columns: ["power_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_sessions_power_batch_id_fkey"
+            columns: ["power_batch_id"]
+            isOneToOne: false
+            referencedRelation: "latest_confirmed_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_sessions_power_controller_context_fkey"
+            columns: ["power_controller_id", "client_id", "generator_id"]
+            isOneToOne: false
+            referencedRelation: "controllers"
+            referencedColumns: ["id", "client_id", "generator_id"]
+          },
+          {
+            foreignKeyName: "import_sessions_state_batch_id_fkey"
+            columns: ["state_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_sessions_state_batch_id_fkey"
+            columns: ["state_batch_id"]
+            isOneToOne: false
+            referencedRelation: "latest_confirmed_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_sessions_state_controller_context_fkey"
+            columns: ["state_controller_id", "client_id", "generator_id"]
+            isOneToOne: false
+            referencedRelation: "controllers"
+            referencedColumns: ["id", "client_id", "generator_id"]
+          },
+        ]
+      }
       inconsistencies: {
         Row: {
           application_id: number | null
@@ -768,6 +926,13 @@ export type Database = {
             referencedColumns: ["id", "generator_id", "controller_id"]
           },
           {
+            foreignKeyName: "power_readings_batch_context_fkey"
+            columns: ["import_batch_id", "generator_id", "controller_id"]
+            isOneToOne: false
+            referencedRelation: "latest_confirmed_import_batches"
+            referencedColumns: ["id", "generator_id", "controller_id"]
+          },
+          {
             foreignKeyName: "power_readings_cold_room_context_fkey"
             columns: ["cold_room_id", "client_id", "location_id"]
             isOneToOne: false
@@ -882,6 +1047,13 @@ export type Database = {
             referencedRelation: "import_batches"
             referencedColumns: ["id", "generator_id", "controller_id"]
           },
+          {
+            foreignKeyName: "raw_events_batch_context_fkey"
+            columns: ["import_batch_id", "generator_id", "controller_id"]
+            isOneToOne: false
+            referencedRelation: "latest_confirmed_import_batches"
+            referencedColumns: ["id", "generator_id", "controller_id"]
+          },
         ]
       }
       source_mappings: {
@@ -924,9 +1096,80 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      latest_confirmed_import_batches: {
+        Row: {
+          client_id: string | null
+          cold_room_id: string | null
+          confirmed_at: string | null
+          controller_id: string | null
+          created_by: string | null
+          data_kind: string | null
+          file_name: string | null
+          generator_id: string | null
+          id: string | null
+          location_id: string | null
+          period_end: string | null
+          period_start: string | null
+          total_rows: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batches_cold_room_hierarchy_fkey"
+            columns: ["cold_room_id", "client_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "cold_rooms"
+            referencedColumns: ["id", "client_id", "location_id"]
+          },
+          {
+            foreignKeyName: "import_batches_controller_hierarchy_fkey"
+            columns: ["controller_id", "client_id", "generator_id"]
+            isOneToOne: false
+            referencedRelation: "controllers"
+            referencedColumns: ["id", "client_id", "generator_id"]
+          },
+          {
+            foreignKeyName: "import_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batches_generator_client_fkey"
+            columns: ["generator_id", "client_id"]
+            isOneToOne: false
+            referencedRelation: "generators"
+            referencedColumns: ["id", "client_id"]
+          },
+        ]
+      }
     }
     Functions: {
+      confirm_import_session: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_coverage_warning_acknowledged: boolean
+          p_generator_id: string
+          p_location_id: string
+          p_power_controller_id: string
+          p_power_file_name: string
+          p_power_file_sha256: string
+          p_power_readings: Json
+          p_state_controller_id: string
+          p_state_events: Json
+          p_state_file_name: string
+          p_state_file_sha256: string
+        }
+        Returns: Json
+      }
       confirm_power_xlsx_import: {
         Args: {
           p_client_id: string
@@ -1086,6 +1329,26 @@ export type Database = {
           p_location_id: string
         }
         Returns: number
+      }
+      record_failed_import_session: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_error_message: string
+          p_generator_id: string
+          p_location_id: string
+          p_power_controller_id: string
+          p_power_file_name: string
+          p_power_file_sha256: string
+          p_power_period_end: string
+          p_power_period_start: string
+          p_state_controller_id: string
+          p_state_file_name: string
+          p_state_file_sha256: string
+          p_state_period_end: string
+          p_state_period_start: string
+        }
+        Returns: string
       }
       record_failed_power_xlsx_import: {
         Args: {

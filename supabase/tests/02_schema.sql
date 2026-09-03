@@ -249,6 +249,7 @@ declare
     'generator_assignments',
     'generators',
     'import_batches',
+    'import_sessions',
     'inconsistencies',
     'locations',
     'power_readings',

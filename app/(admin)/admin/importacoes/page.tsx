@@ -1,8 +1,15 @@
+import { ImportHistory } from "@/components/import-history";
 import { ImportWorkflow } from "@/components/import-workflow";
 import { getImportPageData } from "@/lib/imports/queries";
 
 export default async function ImportsPage() {
-  const { profileId, options, recentBatches } = await getImportPageData();
+  const {
+    profileId,
+    options,
+    latestSources,
+    recentSessions,
+    legacyBatches,
+  } = await getImportPageData();
 
   return (
     <main className="admin-main">
@@ -10,15 +17,21 @@ export default async function ImportsPage() {
         <p className="eyebrow">Importação operacional</p>
         <h1>Estado e telemetria do eWeLink</h1>
         <p>
-          Valide o arquivo no contexto correto, revise a prévia e confirme sem
-          duplicar eventos de estado ou leituras de potência.
+          Reúna os horários programados e a potência consumida na mesma
+          atualização, valide a cobertura e confirme os dois lotes de forma
+          atômica.
         </p>
       </section>
 
       <ImportWorkflow
+        latestSources={latestSources}
         options={options}
         profileId={profileId}
-        recentBatches={recentBatches}
+      />
+
+      <ImportHistory
+        legacyBatches={legacyBatches}
+        recentSessions={recentSessions}
       />
     </main>
   );

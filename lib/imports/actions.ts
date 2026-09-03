@@ -9,10 +9,15 @@ import { createClient } from "@/lib/supabase/server";
 import { IMPORT_BUCKET, MAX_IMPORT_FILE_BYTES } from "./constants";
 import { validateImportContext } from "./context";
 import { ImportValidationError, parseImportWorkbook } from "./parser";
+import { compareImportPeriods } from "./session";
 import type {
   ImportActionResult,
   ImportConfirmation,
   ImportConfirmationRequest,
+  ImportContext,
+  ImportSessionActionResult,
+  ImportSessionConfirmation,
+  ImportSessionConfirmationRequest,
   ImportUploadRequest,
   ParsedImportEvent,
   ParsedPowerReading,
@@ -22,7 +27,7 @@ const uploadPathPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.xlsx$/i;
 const sha256Pattern = /^[0-9a-f]{64}$/;
 
-function errorResult(message: string): ImportActionResult {
+function errorResult(message: string): { status: "error"; message: string } {
   return { status: "error", message };
 }
 
@@ -37,7 +42,10 @@ function isValidRequest(request: ImportUploadRequest, profileId: string) {
     request.fileName.length <= 255 &&
     request.fileName.toLocaleLowerCase("pt-BR").endsWith(".xlsx") &&
     typeof request.context === "object" &&
-    request.context !== null
+    request.context !== null &&
+    (request.expectedDataKind === undefined ||
+      request.expectedDataKind === "state_events" ||
+      request.expectedDataKind === "power_readings")
   );
 }
 
@@ -72,7 +80,7 @@ function persistedPowerReading(reading: ParsedPowerReading): Json {
   };
 }
 
-function isConfirmation(value: Json): value is Json & {
+type StoredImportConfirmation = Json & {
   batch_id: string;
   already_confirmed: boolean;
   total_rows: number;
@@ -81,7 +89,11 @@ function isConfirmation(value: Json): value is Json & {
   unknown_source_rows: number;
   period_start: string | null;
   period_end: string | null;
-} {
+};
+
+function isConfirmation(
+  value: Json | undefined,
+): value is StoredImportConfirmation {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -94,6 +106,62 @@ function isConfirmation(value: Json): value is Json & {
     typeof value.unknown_source_rows === "number" &&
     (typeof value.period_start === "string" || value.period_start === null) &&
     (typeof value.period_end === "string" || value.period_end === null)
+  );
+}
+
+function importConfirmation(value: StoredImportConfirmation): ImportConfirmation {
+  return {
+    batchId: value.batch_id,
+    alreadyConfirmed: value.already_confirmed,
+    totalRows: value.total_rows,
+    insertedRows: value.inserted_rows,
+    duplicateRows: value.duplicate_rows,
+    unknownSourceRows: value.unknown_source_rows,
+    periodStart: value.period_start,
+    periodEnd: value.period_end,
+  };
+}
+
+function isSessionConfirmation(value: Json): value is Json & {
+  session_id: string;
+  already_confirmed: boolean;
+  coverage_status: "full" | "partial";
+  coverage_warning_acknowledged: boolean;
+  state_period_start: string;
+  state_period_end: string;
+  power_period_start: string;
+  power_period_end: string;
+  intersection_start: string;
+  intersection_end: string;
+  state_batch: StoredImportConfirmation;
+  power_batch: StoredImportConfirmation;
+} {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    typeof value.session_id === "string" &&
+    typeof value.already_confirmed === "boolean" &&
+    (value.coverage_status === "full" ||
+      value.coverage_status === "partial") &&
+    typeof value.coverage_warning_acknowledged === "boolean" &&
+    typeof value.state_period_start === "string" &&
+    typeof value.state_period_end === "string" &&
+    typeof value.power_period_start === "string" &&
+    typeof value.power_period_end === "string" &&
+    typeof value.intersection_start === "string" &&
+    typeof value.intersection_end === "string" &&
+    isConfirmation(value.state_batch) &&
+    isConfirmation(value.power_batch)
+  );
+}
+
+function sameHierarchy(left: ImportContext, right: ImportContext) {
+  return (
+    left.clientId === right.clientId &&
+    left.locationId === right.locationId &&
+    left.coldRoomId === right.coldRoomId &&
+    left.generatorId === right.generatorId
   );
 }
 
@@ -140,6 +208,7 @@ async function loadValidatedUpload(
       buffer,
       context,
       mappingsResponse.data,
+      request.expectedDataKind,
     );
 
     return { supabase, context, parsed };
@@ -163,18 +232,37 @@ export async function previewXlsxImport(
     const uniqueFingerprints = [
       ...new Set(parsedRows.map((row) => row.fingerprint)),
     ];
-    const { data, error } = await supabase.rpc(
-      parsed.dataKind === "state_events"
-        ? "existing_event_fingerprints"
-        : "existing_power_fingerprints",
-      { p_fingerprints: uniqueFingerprints },
-    );
+    const [fingerprintsResponse, existingBatchResponse] = await Promise.all([
+      supabase.rpc(
+        parsed.dataKind === "state_events"
+          ? "existing_event_fingerprints"
+          : "existing_power_fingerprints",
+        { p_fingerprints: uniqueFingerprints },
+      ),
+      supabase
+        .from("import_batches")
+        .select("id")
+        .eq("file_sha256", parsed.fileSha256)
+        .eq("client_id", request.context.clientId)
+        .eq("location_id", request.context.locationId)
+        .eq("cold_room_id", request.context.coldRoomId)
+        .eq("generator_id", request.context.generatorId)
+        .eq("controller_id", request.context.controllerId)
+        .eq("data_kind", parsed.dataKind)
+        .eq("status", "confirmed")
+        .maybeSingle(),
+    ]);
 
-    if (error || !data) {
+    if (fingerprintsResponse.error || !fingerprintsResponse.data) {
       throw new Error("Não foi possível comparar os eventos existentes.");
     }
+    if (existingBatchResponse.error) {
+      throw new Error("Não foi possível verificar o histórico do arquivo.");
+    }
 
-    const existing = new Set(data.map((item) => item.fingerprint));
+    const existing = new Set(
+      fingerprintsResponse.data.map((item) => item.fingerprint),
+    );
     const occurrences = new Map<string, number>();
     parsedRows.forEach((row) => {
       occurrences.set(
@@ -199,6 +287,8 @@ export async function previewXlsxImport(
       repeatedFileRows,
       periodStart: parsed.periodStart,
       periodEnd: parsed.periodEnd,
+      alreadyImported: existingBatchResponse.data !== null,
+      existingBatchId: existingBatchResponse.data?.id ?? null,
     };
 
     if (parsed.dataKind === "state_events") {
@@ -314,16 +404,7 @@ export async function confirmXlsxImport(
       throw new Error(administrativeMessage);
     }
 
-    const confirmation: ImportConfirmation = {
-      batchId: data.batch_id,
-      alreadyConfirmed: data.already_confirmed,
-      totalRows: data.total_rows,
-      insertedRows: data.inserted_rows,
-      duplicateRows: data.duplicate_rows,
-      unknownSourceRows: data.unknown_source_rows,
-      periodStart: data.period_start,
-      periodEnd: data.period_end,
-    };
+    const confirmation = importConfirmation(data);
 
     revalidatePath("/admin/importacoes");
     return { status: "confirmed", confirmation };
@@ -335,6 +416,170 @@ export async function confirmXlsxImport(
     console.error("Falha ao confirmar importação XLSX", error);
     return errorResult(
       "Não foi possível confirmar a importação. Nenhum lote parcial foi mantido.",
+    );
+  }
+}
+
+export async function confirmImportSession(
+  request: ImportSessionConfirmationRequest,
+): Promise<ImportSessionActionResult> {
+  const profile = await requireMaster();
+
+  try {
+    if (
+      !request ||
+      !request.context ||
+      !request.state ||
+      !request.power ||
+      !sameHierarchy(request.state.context, request.power.context) ||
+      request.context.clientId !== request.state.context.clientId ||
+      request.context.locationId !== request.state.context.locationId ||
+      request.context.coldRoomId !== request.state.context.coldRoomId ||
+      request.context.generatorId !== request.state.context.generatorId ||
+      !sha256Pattern.test(request.state.expectedFileSha256) ||
+      !sha256Pattern.test(request.power.expectedFileSha256)
+    ) {
+      return errorResult(
+        "A sessão não corresponde às duas prévias atuais. Valide os arquivos novamente.",
+      );
+    }
+
+    const [stateSettled, powerSettled] = await Promise.allSettled([
+      loadValidatedUpload(
+        { ...request.state, expectedDataKind: "state_events" },
+        profile.id,
+      ),
+      loadValidatedUpload(
+        { ...request.power, expectedDataKind: "power_readings" },
+        profile.id,
+      ),
+    ]);
+
+    if (stateSettled.status === "rejected") throw stateSettled.reason;
+    if (powerSettled.status === "rejected") throw powerSettled.reason;
+
+    const stateLoaded = stateSettled.value;
+    const powerLoaded = powerSettled.value;
+    const stateParsed = stateLoaded.parsed;
+    const powerParsed = powerLoaded.parsed;
+
+    if (
+      stateParsed.dataKind !== "state_events" ||
+      powerParsed.dataKind !== "power_readings"
+    ) {
+      throw new ImportValidationError(
+        "Cada arquivo deve permanecer no campo correspondente ao seu formato.",
+      );
+    }
+
+    if (
+      stateParsed.fileSha256 !== request.state.expectedFileSha256 ||
+      powerParsed.fileSha256 !== request.power.expectedFileSha256
+    ) {
+      return errorResult(
+        "Um dos arquivos mudou desde a prévia. Valide as versões atuais novamente.",
+      );
+    }
+
+    const coverage = compareImportPeriods(
+      { start: stateParsed.periodStart, end: stateParsed.periodEnd },
+      { start: powerParsed.periodStart, end: powerParsed.periodEnd },
+    );
+
+    if (coverage.status === "no_intersection") {
+      return errorResult(
+        "Os arquivos não possuem interseção temporal e não representam a mesma atualização operacional.",
+      );
+    }
+
+    if (
+      coverage.status === "partial" &&
+      !request.coverageWarningAcknowledged
+    ) {
+      return errorResult(
+        "A cobertura de potência é parcial. Confirme sua ciência antes de continuar.",
+      );
+    }
+
+    const rpcArguments = {
+      p_client_id: request.context.clientId,
+      p_location_id: request.context.locationId,
+      p_cold_room_id: request.context.coldRoomId,
+      p_generator_id: request.context.generatorId,
+      p_state_controller_id: request.state.context.controllerId,
+      p_state_file_name: request.state.fileName,
+      p_state_file_sha256: stateParsed.fileSha256,
+      p_state_events: stateParsed.events.map(persistedEvent),
+      p_power_controller_id: request.power.context.controllerId,
+      p_power_file_name: request.power.fileName,
+      p_power_file_sha256: powerParsed.fileSha256,
+      p_power_readings: powerParsed.readings.map(persistedPowerReading),
+      p_coverage_warning_acknowledged:
+        request.coverageWarningAcknowledged,
+    };
+    const { data, error } = await stateLoaded.supabase.rpc(
+      "confirm_import_session",
+      rpcArguments,
+    );
+
+    if (error || !data || !isSessionConfirmation(data)) {
+      const administrativeMessage =
+        error?.message ?? "Resposta inválida ao confirmar a sessão.";
+      const failedResult = await stateLoaded.supabase.rpc(
+        "record_failed_import_session",
+        {
+          p_client_id: request.context.clientId,
+          p_location_id: request.context.locationId,
+          p_cold_room_id: request.context.coldRoomId,
+          p_generator_id: request.context.generatorId,
+          p_state_controller_id: request.state.context.controllerId,
+          p_state_file_name: request.state.fileName,
+          p_state_file_sha256: stateParsed.fileSha256,
+          p_state_period_start: stateParsed.periodStart,
+          p_state_period_end: stateParsed.periodEnd,
+          p_power_controller_id: request.power.context.controllerId,
+          p_power_file_name: request.power.fileName,
+          p_power_file_sha256: powerParsed.fileSha256,
+          p_power_period_start: powerParsed.periodStart,
+          p_power_period_end: powerParsed.periodEnd,
+          p_error_message: administrativeMessage,
+        },
+      );
+
+      if (failedResult.error) {
+        console.error(
+          "Falha ao registrar sessão malsucedida",
+          failedResult.error,
+        );
+      }
+      throw new Error(administrativeMessage);
+    }
+
+    const confirmation: ImportSessionConfirmation = {
+      sessionId: data.session_id,
+      alreadyConfirmed: data.already_confirmed,
+      coverageStatus: data.coverage_status,
+      coverageWarningAcknowledged: data.coverage_warning_acknowledged,
+      statePeriodStart: data.state_period_start,
+      statePeriodEnd: data.state_period_end,
+      powerPeriodStart: data.power_period_start,
+      powerPeriodEnd: data.power_period_end,
+      intersectionStart: data.intersection_start,
+      intersectionEnd: data.intersection_end,
+      stateBatch: importConfirmation(data.state_batch),
+      powerBatch: importConfirmation(data.power_batch),
+    };
+
+    revalidatePath("/admin/importacoes");
+    return { status: "confirmed", confirmation };
+  } catch (error) {
+    if (error instanceof ImportValidationError) {
+      return errorResult(error.message);
+    }
+
+    console.error("Falha ao confirmar sessão de importação", error);
+    return errorResult(
+      "Não foi possível confirmar a atualização. Nenhum lote parcial foi mantido.",
     );
   }
 }

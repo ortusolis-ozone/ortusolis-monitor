@@ -6,6 +6,7 @@ import readXlsxFile, { type CellValue } from "read-excel-file/node";
 
 import { IMPORT_PREVIEW_ROWS, MAX_IMPORT_ROWS } from "./constants";
 import type {
+  ImportDataKind,
   ParsedImportEvent,
   ParsedPowerReading,
   ValidatedImportContext,
@@ -25,8 +26,6 @@ type SourceMapping = {
   normalized_source: string;
   classification: string;
 };
-
-type ImportDataKind = "state_events" | "power_readings";
 
 const stateHeaders = ["tempo", "operacao", "acionado por"] as const;
 const powerHeaders = [
@@ -332,6 +331,19 @@ function validateControllerRole(
   }
 }
 
+export function validateExpectedDataKind(
+  actual: ImportDataKind,
+  expected?: ImportDataKind,
+) {
+  if (!expected || actual === expected) return;
+
+  throw new ImportValidationError(
+    actual === "power_readings"
+      ? "Este é um arquivo de potência. Selecione-o no campo Potência consumida."
+      : "Este é um arquivo de liga/desliga. Selecione-o no campo Horários programados — Liga/desliga.",
+  );
+}
+
 function periodFor(values: Array<{ occurred_at: string }>) {
   let periodStart = values[0].occurred_at;
   let periodEnd = periodStart;
@@ -348,6 +360,7 @@ export async function parseImportWorkbook(
   buffer: Buffer,
   context: ValidatedImportContext,
   sourceMappings: SourceMapping[],
+  expectedDataKind?: ImportDataKind,
 ) {
   let sheets;
 
@@ -382,6 +395,7 @@ export async function parseImportWorkbook(
     );
   }
 
+  validateExpectedDataKind(selected.dataKind, expectedDataKind);
   validateControllerRole(context, selected.dataKind);
   const requiredHeaders =
     selected.dataKind === "power_readings" ? powerHeaders : stateHeaders;

@@ -10,6 +10,7 @@ import {
   parseImportWorkbook,
   parseLocalDateTimeText,
   parsePowerText,
+  validateExpectedDataKind,
 } from "./parser";
 import type { ValidatedImportContext } from "./types";
 
@@ -34,6 +35,18 @@ const powerContext: ValidatedImportContext = {
 };
 
 describe("power parser primitives", () => {
+  test("directs a workbook selected in the wrong field to the correct source", () => {
+    expect(() =>
+      validateExpectedDataKind("power_readings", "state_events"),
+    ).toThrow(/campo Potência consumida/);
+    expect(() =>
+      validateExpectedDataKind("state_events", "power_readings"),
+    ).toThrow(/campo Horários programados/);
+    expect(() =>
+      validateExpectedDataKind("state_events", "state_events"),
+    ).not.toThrow();
+  });
+
   test("accepts unambiguous dot and comma decimals only in watts", () => {
     expect(parsePowerText("71.80W")?.power).toBe(71.8);
     expect(parsePowerText("71,80 W")?.power).toBe(71.8);
