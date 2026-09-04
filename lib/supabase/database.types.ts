@@ -20,6 +20,7 @@ export type Database = {
           observed_power_w_snapshot: number | null
           operational_power_status: string
           operational_reason: string
+          operational_rule_version: string
           power_off_reading_id: number | null
           power_on_reading_id: number | null
           power_profile_id: string | null
@@ -39,6 +40,7 @@ export type Database = {
           observed_power_w_snapshot?: number | null
           operational_power_status?: string
           operational_reason?: string
+          operational_rule_version?: string
           power_off_reading_id?: number | null
           power_on_reading_id?: number | null
           power_profile_id?: string | null
@@ -58,6 +60,7 @@ export type Database = {
           observed_power_w_snapshot?: number | null
           operational_power_status?: string
           operational_reason?: string
+          operational_rule_version?: string
           power_off_reading_id?: number | null
           power_on_reading_id?: number | null
           power_profile_id?: string | null
@@ -809,6 +812,7 @@ export type Database = {
           event_id: number | null
           generator_id: string
           id: number
+          power_profile_id: string | null
           power_reading_id: number | null
           public_date: string
           related_event_id: number | null
@@ -825,6 +829,7 @@ export type Database = {
           event_id?: number | null
           generator_id: string
           id?: never
+          power_profile_id?: string | null
           power_reading_id?: number | null
           public_date: string
           related_event_id?: number | null
@@ -841,6 +846,7 @@ export type Database = {
           event_id?: number | null
           generator_id?: string
           id?: never
+          power_profile_id?: string | null
           power_reading_id?: number | null
           public_date?: string
           related_event_id?: number | null
@@ -872,6 +878,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "generators"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inconsistencies_power_profile_context_fkey"
+            columns: ["power_profile_id", "generator_id"]
+            isOneToOne: false
+            referencedRelation: "generator_power_profiles"
+            referencedColumns: ["id", "generator_id"]
           },
           {
             foreignKeyName: "inconsistencies_power_reading_generator_fkey"

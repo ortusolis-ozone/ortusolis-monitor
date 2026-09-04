@@ -33,8 +33,8 @@ Regras para a execução:
 
 - [x] **12.1 — Fundação dos perfis nominais** — concluída em 04/09/2026.
 - [x] **12.2 — Avaliação operacional determinística** — concluída em 04/09/2026.
-- [ ] **12.3 — Reprocessamento e inconsistência de potência baixa** — não
-  iniciada.
+- [x] **12.3 — Reprocessamento e inconsistência de potência baixa** — concluída
+  em 04/09/2026.
 - [ ] **12.4 — Contratos administrativos de servidor** — não iniciada.
 - [ ] **12.5 — Experiência administrativa do gerador** — não iniciada.
 - [ ] **12.6 — Integração com a importação conjunta** — não iniciada.
