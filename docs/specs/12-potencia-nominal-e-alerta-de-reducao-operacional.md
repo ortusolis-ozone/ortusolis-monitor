@@ -7,6 +7,292 @@ apresentação sanitizada ao cliente.
 
 **Dependências:** specs 02, 03, 04, 06, 07, 08, 09, 10 e 11.
 
+## Plano de execução incremental
+
+Esta spec deve ser implementada em tarefas pequenas e na ordem abaixo. Cada
+tarefa depende da conclusão das anteriores e só deve ser iniciada por comando
+explícito, por exemplo: `execute a tarefa 12.1`.
+
+Regras para a execução:
+
+- executar somente a tarefa solicitada, sem antecipar entregas funcionais das
+  tarefas seguintes;
+- admitir apenas infraestrutura de compatibilidade estritamente necessária
+  para manter a aplicação funcional entre duas tarefas;
+- começar conferindo se todas as predecessoras estão concluídas;
+- manter migrations aditivas e contratos antigos durante as transições
+  indicadas neste plano;
+- incluir na própria tarefa os testes automatizados correspondentes;
+- encerrar cada tarefa com tipos, lint e testes afetados aprovados;
+- atualizar o marcador e a data da tarefa na própria spec somente depois da
+  verificação;
+- não considerar a spec concluída enquanto a tarefa 12.10 não estiver
+  aprovada.
+
+### Acompanhamento
+
+- [ ] **12.1 — Fundação dos perfis nominais** — não iniciada.
+- [ ] **12.2 — Avaliação operacional determinística** — não iniciada.
+- [ ] **12.3 — Reprocessamento e inconsistência de potência baixa** — não
+  iniciada.
+- [ ] **12.4 — Contratos administrativos de servidor** — não iniciada.
+- [ ] **12.5 — Experiência administrativa do gerador** — não iniciada.
+- [ ] **12.6 — Integração com a importação conjunta** — não iniciada.
+- [ ] **12.7 — Diagnóstico técnico do Master** — não iniciada.
+- [ ] **12.8 — Contrato sanitizado do cliente** — não iniciada.
+- [ ] **12.9 — Experiência do portal e retirada do contrato antigo** — não
+  iniciada.
+- [ ] **12.10 — Auditoria final, documentação e aceite integrado** — não
+  iniciada.
+
+### Tarefa 12.1 — Fundação dos perfis nominais
+
+**Objetivo:** criar o modelo histórico de potência nominal sem alterar ainda o
+cadastro nem o processamento das aplicações.
+
+**Escopo:**
+
+- criar `generator_power_profiles` por migration gerada pelo Supabase CLI;
+- usar decimal exato, validar potência positiva e até três casas decimais;
+- fixar `reduction_limit_percent` em `15.000` e calcular no banco o mínimo de
+  85%, sem aceitar um mínimo informado externamente;
+- implementar vigência semiaberta e impedir sobreposição por gerador;
+- registrar `created_by` e `created_at`, com chave estrangeira e índices
+  necessários;
+- habilitar RLS e definir `GRANT`, `REVOKE` e políticas explícitas para que
+  somente o Master consulte ou mantenha os perfis;
+- manter geradores existentes sem perfil e sem qualquer inferência de valor.
+
+**Concluída quando:** constraints, cálculo `72 → 61,2`, limites de vigência,
+sobreposição, auditoria básica e acesso de Master, cliente e `anon` estiverem
+cobertos por testes SQL. Nenhuma tela ou ação de cadastro muda nesta tarefa.
+
+### Tarefa 12.2 — Avaliação operacional determinística
+
+**Objetivo:** representar e calcular os quatro estados operacionais sem ainda
+ligar o cálculo automaticamente a todos os gatilhos de reprocessamento.
+
+**Escopo:**
+
+- estender `application_power_verifications` com estado operacional, perfil,
+  leitura de referência, snapshots e motivo técnico;
+- garantir uma única avaliação operacional por aplicação;
+- implementar uma função privada e determinística que selecione o perfil pela
+  data do evento `Ligar` e use somente `power_on_reading_id`;
+- produzir `within_expected`, `below_expected`, `not_evaluable` e
+  `not_configured` sem alterar o estado principal da aplicação;
+- preservar no snapshot os valores efetivamente usados pelo processamento;
+- manter a avaliação de correlação da spec 10 independente da nova avaliação.
+
+**Concluída quando:** testes SQL cobrirem igualdade em `61,2 W`, valor
+`61,199 W`, ausência de leitura ligada, ausência de perfil, fronteira exata de
+vigência, leitura de desligamento ignorada e reconstrução determinística. A
+função pode ser exercitada diretamente pelos testes nesta etapa.
+
+### Tarefa 12.3 — Reprocessamento e inconsistência de potência baixa
+
+**Objetivo:** incorporar a avaliação operacional ao processamento real e
+manter o ciclo de vida da inconsistência `power_below_expected`.
+
+**Escopo:**
+
+- integrar a avaliação à reconstrução e correlação transacional da spec 10;
+- criar ou manter uma única inconsistência ativa de potência baixa por
+  aplicação, leitura e perfil efetivo;
+- resolver automaticamente a inconsistência quando o resultado deixar de ser
+  baixo, sem apagar reconhecimento ou comentário administrativo histórico;
+- reprocessar após mudanças relevantes de perfil, controlador, vigência,
+  tolerância, limites ou dados correlacionados;
+- limitar mudanças de perfil ao intervalo temporal afetado;
+- registrar a versão da regra de cálculo e as contagens por estado sem guardar
+  conteúdo bruto de arquivos;
+- assegurar atomicidade e idempotência em falhas e repetições.
+
+**Concluída quando:** testes SQL demonstrarem criação única, repetição sem
+duplicidade, preservação após reconhecimento, resolução automática, escopo
+temporal do reprocessamento e ausência de resultado parcial.
+
+### Tarefa 12.4 — Contratos administrativos de servidor
+
+**Objetivo:** disponibilizar primitivas seguras para cadastro e versionamento
+antes de trocar a interface existente.
+
+**Escopo:**
+
+- criar RPC administrativa para registrar gerador e primeiro perfil na mesma
+  transação;
+- criar RPC administrativa para encerrar o perfil vigente e criar uma nova
+  vigência, sem sobrescrever o histórico;
+- validar identidade e papel dentro das funções, fixar `search_path` e limitar
+  permissões;
+- derivar autor da sessão e dados confiáveis do banco, sem aceitar autor ou
+  mínimo calculado do navegador;
+- adicionar validação decimal no servidor para vazio, não numérico, não finito,
+  não positivo e mais de três casas;
+- adicionar Server Actions e queries tipadas para situação atual, histórico e
+  geradores pendentes;
+- manter temporariamente o contrato antigo de cadastro utilizável até a troca
+  atômica da interface na tarefa 12.5.
+
+**Concluída quando:** testes de servidor e banco cobrirem autorização,
+validação, mínimo adulterado, criação atômica, nova vigência, conflito e
+mensagens sanitizadas, sem regressão no cadastro existente.
+
+### Tarefa 12.5 — Experiência administrativa do gerador
+
+**Objetivo:** tornar a configuração nominal obrigatória para novos geradores e
+gerenciável pelo Master.
+
+**Escopo:**
+
+- adicionar `Potência nominal (W)` ao cadastro do gerador;
+- mostrar a prévia de `Potência mínima calculada` em 85% como somente leitura;
+- explicar a diferença entre potência do gerador e limites elétricos do
+  controlador;
+- trocar o cadastro para o novo contrato transacional e desativar o caminho
+  legado para novos geradores;
+- adicionar edição com potência nova e início de vigência;
+- mostrar nominal vigente, mínimo, situação e histórico na lista/detalhe;
+- identificar e filtrar geradores legados com configuração pendente;
+- cobrir vazio, inválido, válido, salvando e erro com rótulos, foco, teclado e
+  mensagens acessíveis em desktop e smartphone.
+
+**Concluída quando:** um novo gerador não puder ser salvo sem potência nominal
+positiva no navegador, no servidor ou no banco; uma edição criar nova vigência;
+e testes de componente/servidor cobrirem a prévia e os estados do formulário.
+
+### Tarefa 12.6 — Integração com a importação conjunta
+
+**Objetivo:** aplicar a regra nominal à prévia e confirmação da spec 11 sem
+duplicar lógica de domínio.
+
+**Escopo:**
+
+- bloquear antes da confirmação uma nova sessão que precise avaliar potência
+  em período sem perfil nominal válido;
+- orientar o Master a completar o cadastro, sem classificar o caso como
+  potência baixa;
+- projetar na prévia nominal e mínimo vigentes e quantidades
+  `within_expected`, `below_expected` e `not_evaluable`, agrupadas por motivo;
+- usar na prévia e na confirmação a mesma função canônica de correlação e
+  avaliação;
+- manter confirmação transacional, revalidação dos dois arquivos e
+  idempotência da spec 11;
+- impedir que fluxos legados criem silenciosamente avaliações sem perfil.
+
+**Concluída quando:** testes SQL, de servidor e da interface cobrirem bloqueio
+sem perfil, perfis que mudam no período, contagens projetadas iguais às
+confirmadas, falha atômica e reimportação idempotente.
+
+### Tarefa 12.7 — Diagnóstico técnico do Master
+
+**Objetivo:** oferecer ao Master evidência suficiente para investigar cada
+aplicação sem alterar o cálculo por ações administrativas.
+
+**Escopo:**
+
+- exibir lado a lado o estado de correlação e o estado operacional;
+- mostrar nominal, mínimo, observado, diferença absoluta e percentual;
+- mostrar leitura, controlador, lote, arquivo e perfil de origem;
+- mostrar motivo técnico para `not_evaluable` e `not_configured`;
+- integrar a inconsistência e o histórico disponível de reprocessamento;
+- manter reconhecimento e comentários como acompanhamento, sem normalizar uma
+  leitura baixa;
+- usar texto que recomende verificar equipamento e coleta sem concluir defeito
+  ou ausência de ozônio.
+
+**Concluída quando:** queries retornarem o diagnóstico completo somente ao
+Master, a interface distinguir todos os estados e testes assegurarem que ações
+administrativas não alteram `below_expected`.
+
+### Tarefa 12.8 — Contrato sanitizado do cliente
+
+**Objetivo:** criar uma superfície pública nova e mínima, em paralelo ao
+contrato atual, para permitir migração segura do portal.
+
+**Escopo:**
+
+- criar view com `security_invoker` ou RPC sanitizada que retorne somente o
+  contexto público necessário, `application_status` e `attention_status`;
+- agregar o dia como `attention` quando ao menos uma aplicação visível estiver
+  `below_expected`, sem retornar contagem;
+- mapear `within_expected`, `not_evaluable` e `not_configured` para ausência de
+  alerta de redução;
+- excluir nominal, mínimo, observado, percentual, perfis, leituras, estados
+  internos, razões, tolerâncias e limites do tipo de retorno;
+- aplicar isolamento por conta, RLS, `GRANT` e `REVOKE` explícitos;
+- manter o contrato antigo somente como ponte interna até a tarefa 12.9, sem
+  ampliar suas permissões.
+
+**Concluída quando:** testes de catálogo e execução provarem ausência de
+colunas técnicas, bloqueio de `anon`, isolamento entre dois clientes e acesso
+correto do Master e do cliente ao novo contrato.
+
+### Tarefa 12.9 — Experiência do portal e retirada do contrato antigo
+
+**Objetivo:** migrar o portal para o contrato sanitizado e remover a exposição
+normal de “potência confirmada”.
+
+**Escopo:**
+
+- trocar queries e tipos do portal para consumir somente o contrato da tarefa
+  12.8;
+- mostrar `Aplicação registrada` sem selo ou detalhe elétrico quando não houver
+  redução;
+- mostrar `Aplicação registrada — atenção necessária` e o texto qualitativo
+  aprovado quando houver redução;
+- apresentar um único sinal de atenção por dia, mesmo com várias aplicações
+  baixas;
+- não gerar falso alerta para `not_evaluable`, `not_configured`, falta de
+  cobertura ou leitura de desligamento;
+- garantir que o alerta tenha texto e semântica acessível, sem depender apenas
+  de cor;
+- após a troca, retirar `power_evidence_status` do contrato público antigo e
+  revogar ou remover o caminho de compatibilidade correspondente;
+- inspecionar HTML e payload para confirmar que nenhum valor ou identificador
+  técnico foi enviado ao cliente.
+
+**Concluída quando:** testes do portal e verificação no navegador cobrirem caso
+normal, caso baixo, agregação diária, responsividade, acessibilidade, payload
+sanitizado e isolamento entre contas.
+
+### Tarefa 12.10 — Auditoria final, documentação e aceite integrado
+
+**Objetivo:** provar que a entrega completa satisfaz a spec e preparar sua
+operação segura.
+
+**Escopo:**
+
+- revisar logs e auditoria de criação/encerramento de perfil, reprocessamento e
+  ciclo da inconsistência, sem dados brutos ou exposição ao cliente;
+- documentar a operação e a diferença entre energização, consumo abaixo do
+  esperado e geração de ozônio;
+- gerar novamente os tipos do banco e conferir o diff;
+- executar reset/migrations em banco limpo e a suíte SQL completa;
+- executar testes unitários, typecheck, lint e build de produção;
+- verificar no navegador os fluxos críticos de Master e cliente em desktop e
+  viewport móvel;
+- revisar a matriz abaixo e registrar qualquer decisão editorial permitida;
+- atualizar o status geral da spec somente após todos os critérios passarem.
+
+**Concluída quando:** todas as tarefas 12.1 a 12.9 estiverem marcadas como
+concluídas, a suíte completa estiver verde, não houver regressão das specs 02 a
+11 e a Definition of Done desta spec estiver integralmente atendida.
+
+### Matriz de rastreabilidade
+
+| Área da spec | Tarefas responsáveis |
+| --- | --- |
+| Perfil, cálculo de 85%, vigência e legado | 12.1, 12.4 e 12.5 |
+| Quatro estados e snapshots | 12.2 |
+| Reprocessamento e `power_below_expected` | 12.3 |
+| Cadastro, edição, listagem e pendência | 12.4 e 12.5 |
+| Prévia e confirmação conjunta | 12.6 |
+| Diagnóstico administrativo | 12.7 |
+| Segurança e contrato sanitizado | 12.8 e 12.9 |
+| Portal, atenção diária e acessibilidade | 12.9 |
+| Observabilidade, documentação e aceite final | 12.10 |
+
 ## Regra de precedência
 
 Esta spec acrescenta uma avaliação de suficiência operacional à evidência de
