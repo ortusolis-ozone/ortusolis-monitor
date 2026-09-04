@@ -411,6 +411,57 @@ export type Database = {
           },
         ]
       }
+      generator_power_profiles: {
+        Row: {
+          created_at: string
+          created_by: string
+          generator_id: string
+          id: string
+          minimum_acceptable_power_w: number
+          nominal_power_w: number
+          reduction_limit_percent: number
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          generator_id: string
+          id?: string
+          minimum_acceptable_power_w?: number
+          nominal_power_w: number
+          reduction_limit_percent?: number
+          valid_from: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          generator_id?: string
+          id?: string
+          minimum_acceptable_power_w?: number
+          nominal_power_w?: number
+          reduction_limit_percent?: number
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generator_power_profiles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generator_power_profiles_generator_id_fkey"
+            columns: ["generator_id"]
+            isOneToOne: false
+            referencedRelation: "generators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generators: {
         Row: {
           client_id: string

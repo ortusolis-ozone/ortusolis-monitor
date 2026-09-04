@@ -247,6 +247,7 @@ declare
     'cold_rooms',
     'controllers',
     'generator_assignments',
+    'generator_power_profiles',
     'generators',
     'import_batches',
     'import_sessions',
