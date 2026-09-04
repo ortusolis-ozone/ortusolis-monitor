@@ -32,7 +32,7 @@ Regras para a execução:
 ### Acompanhamento
 
 - [x] **12.1 — Fundação dos perfis nominais** — concluída em 04/09/2026.
-- [ ] **12.2 — Avaliação operacional determinística** — não iniciada.
+- [x] **12.2 — Avaliação operacional determinística** — concluída em 04/09/2026.
 - [ ] **12.3 — Reprocessamento e inconsistência de potência baixa** — não
   iniciada.
 - [ ] **12.4 — Contratos administrativos de servidor** — não iniciada.

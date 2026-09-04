@@ -15,8 +15,15 @@ export type Database = {
           controller_id: string | null
           created_at: string
           generator_id: string
+          minimum_acceptable_power_w_snapshot: number | null
+          nominal_power_w_snapshot: number | null
+          observed_power_w_snapshot: number | null
+          operational_power_status: string
+          operational_reason: string
           power_off_reading_id: number | null
           power_on_reading_id: number | null
+          power_profile_id: string | null
+          reference_power_reading_id: number | null
           source_updated_at: string
           status: string
           technical_reason: string
@@ -27,8 +34,15 @@ export type Database = {
           controller_id?: string | null
           created_at?: string
           generator_id: string
+          minimum_acceptable_power_w_snapshot?: number | null
+          nominal_power_w_snapshot?: number | null
+          observed_power_w_snapshot?: number | null
+          operational_power_status?: string
+          operational_reason?: string
           power_off_reading_id?: number | null
           power_on_reading_id?: number | null
+          power_profile_id?: string | null
+          reference_power_reading_id?: number | null
           source_updated_at: string
           status: string
           technical_reason: string
@@ -39,8 +53,15 @@ export type Database = {
           controller_id?: string | null
           created_at?: string
           generator_id?: string
+          minimum_acceptable_power_w_snapshot?: number | null
+          nominal_power_w_snapshot?: number | null
+          observed_power_w_snapshot?: number | null
+          operational_power_status?: string
+          operational_reason?: string
           power_off_reading_id?: number | null
           power_on_reading_id?: number | null
+          power_profile_id?: string | null
+          reference_power_reading_id?: number | null
           source_updated_at?: string
           status?: string
           technical_reason?: string
@@ -78,6 +99,24 @@ export type Database = {
           {
             foreignKeyName: "application_power_verifications_on_context_fkey"
             columns: ["power_on_reading_id", "generator_id", "controller_id"]
+            isOneToOne: false
+            referencedRelation: "power_readings"
+            referencedColumns: ["id", "generator_id", "controller_id"]
+          },
+          {
+            foreignKeyName: "application_power_verifications_power_profile_context_fkey"
+            columns: ["power_profile_id", "generator_id"]
+            isOneToOne: false
+            referencedRelation: "generator_power_profiles"
+            referencedColumns: ["id", "generator_id"]
+          },
+          {
+            foreignKeyName: "application_power_verifications_reference_context_fkey"
+            columns: [
+              "reference_power_reading_id",
+              "generator_id",
+              "controller_id",
+            ]
             isOneToOne: false
             referencedRelation: "power_readings"
             referencedColumns: ["id", "generator_id", "controller_id"]
