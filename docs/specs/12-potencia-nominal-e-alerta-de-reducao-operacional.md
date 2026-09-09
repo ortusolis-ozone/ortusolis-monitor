@@ -35,7 +35,7 @@ Regras para a execução:
 - [x] **12.2 — Avaliação operacional determinística** — concluída em 04/09/2026.
 - [x] **12.3 — Reprocessamento e inconsistência de potência baixa** — concluída
   em 04/09/2026; revisada e validada em 09/09/2026.
-- [ ] **12.4 — Contratos administrativos de servidor** — não iniciada.
+- [x] **12.4 — Contratos administrativos de servidor** — concluída em 09/09/2026.
 - [ ] **12.5 — Experiência administrativa do gerador** — não iniciada.
 - [ ] **12.6 — Integração com a importação conjunta** — não iniciada.
 - [ ] **12.7 — Diagnóstico técnico do Master** — não iniciada.
@@ -146,6 +146,35 @@ antes de trocar a interface existente.
 **Concluída quando:** testes de servidor e banco cobrirem autorização,
 validação, mínimo adulterado, criação atômica, nova vigência, conflito e
 mensagens sanitizadas, sem regressão no cadastro existente.
+
+**Entrega — 09/09/2026:** migration
+`20260909171707_nominal_power_admin_contracts.sql`, aplicada e validada no banco
+local. Os contratos novos são:
+
+- `register_generator_with_power_profile`: registra gerador, alocação, dois
+  controladores e primeiro perfil em uma transação. Deriva cliente e local da
+  câmara, início do perfil da alocação no fuso do local e autor da sessão.
+- `version_generator_power_profile`: encerra o último perfil aberto e insere
+  outro; exige início posterior e confere `p_expected_profile_id` sob bloqueio
+  transacional. Identificador ausente/nulo permite configurar um legado sem
+  perfil aberto; versão desatualizada exige releitura do histórico.
+- `list_admin_generator_power_configuration` e
+  `list_admin_generator_power_history`: consultam situação em um instante,
+  geradores pendentes e histórico, com autorização de Master e RLS.
+
+As Server Actions e queries tipadas ficam em
+`lib/operations/power-profiles/`. A potência nominal trafega como texto decimal
+exato, aceita vírgula ou ponto e até três casas, sem conversão para `Number`.
+Autor, percentual e mínimo enviados pelo navegador não entram no comando.
+O versionamento recebe data/hora ISO com fuso explícito; a consulta de situação
+usa o relógio do banco quando nenhum instante é informado. As consultas
+administrativas preservam os valores decimais como texto.
+
+Validação: 14 arquivos SQL aprovados, incluindo falha tardia com rollback de
+cadastro, encerramento, auditoria e reprocessamento; 70 testes de aplicação
+aprovados; typecheck, lint, lint SQL e build de produção aprovados. Tipos públicos
+regenerados. O cadastro antigo continua utilizável até a troca da interface na
+tarefa 12.5.
 
 ### Tarefa 12.5 — Experiência administrativa do gerador
 

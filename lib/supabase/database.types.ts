@@ -1315,6 +1315,39 @@ export type Database = {
           fingerprint: string
         }[]
       }
+      list_admin_generator_power_configuration: {
+        Args: {
+          p_at?: string
+          p_generator_id?: string
+          p_only_pending?: boolean
+        }
+        Returns: {
+          client_id: string
+          configuration_status: string
+          generator_id: string
+          identifier: string
+          is_active: boolean
+          minimum_acceptable_power_w: string
+          nominal_power_w: string
+          power_profile_id: string
+          valid_from: string
+          valid_until: string
+        }[]
+      }
+      list_admin_generator_power_history: {
+        Args: { p_generator_id: string }
+        Returns: {
+          created_at: string
+          created_by: string
+          generator_id: string
+          id: string
+          minimum_acceptable_power_w: string
+          nominal_power_w: string
+          reduction_limit_percent: string
+          valid_from: string
+          valid_until: string
+        }[]
+      }
       list_admin_inconsistencies: {
         Args: {
           p_client_id?: string
@@ -1566,6 +1599,21 @@ export type Database = {
         }
         Returns: string
       }
+      register_generator_with_power_profile: {
+        Args: {
+          p_cold_room_id: string
+          p_correlation_tolerance_seconds?: number
+          p_identifier: string
+          p_nominal_power_w: string
+          p_power_controller_device_id: string
+          p_power_controller_identifier: string
+          p_power_off_threshold_w?: number
+          p_power_on_threshold_w?: number
+          p_state_controller_identifier: string
+          p_valid_from: string
+        }
+        Returns: string
+      }
       reopen_inconsistency: {
         Args: { p_inconsistency_id: number }
         Returns: boolean
@@ -1602,6 +1650,15 @@ export type Database = {
       set_source_mapping: {
         Args: { p_classification: string; p_normalized_source: string }
         Returns: number
+      }
+      version_generator_power_profile: {
+        Args: {
+          p_expected_profile_id?: string
+          p_generator_id: string
+          p_nominal_power_w: string
+          p_valid_from: string
+        }
+        Returns: string
       }
     }
     Enums: {
