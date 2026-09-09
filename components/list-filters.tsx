@@ -1,15 +1,18 @@
 import { statusFilters, type StatusFilter } from "@/lib/operations/constants";
+import type { ReactNode } from "react";
 
 type ListFiltersProps = {
   status: StatusFilter;
   query?: string;
   withSearch?: boolean;
+  children?: ReactNode;
 };
 
 export function ListFilters({
   status,
   query = "",
   withSearch = false,
+  children,
 }: ListFiltersProps) {
   return (
     <form className="list-filters">
@@ -36,6 +39,7 @@ export function ListFilters({
         </select>
       </label>
 
+      {children}
       <button className="secondary-button" type="submit">
         Filtrar
       </button>

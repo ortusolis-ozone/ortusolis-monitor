@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { NominalPowerFields } from "@/components/nominal-power-fields";
+import { getGeneratorPowerConfigurations } from "@/lib/operations/power-profiles/queries";
+import { formatPower } from "@/lib/operations/power-profiles/format";
 import { FieldError, OperationalForm } from "@/components/operational-form";
 import { ListFilters } from "@/components/list-filters";
 import { StatusBadge } from "@/components/status-badge";
@@ -16,7 +20,7 @@ import {
 } from "@/lib/operations/queries";
 
 type GeneratorsPageProps = {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; power?: string }>;
 };
 
 type ControllerOption = Awaited<
@@ -129,10 +133,14 @@ export default async function GeneratorsPage({
 }: GeneratorsPageProps) {
   const filters = await searchParams;
   const status = parseStatusFilter(filters.status);
-  const [generators, options] = await Promise.all([
+  const [allGenerators, options, powerConfigurations] = await Promise.all([
     getGenerators(status),
     getOperationalFormOptions(),
+    getGeneratorPowerConfigurations(),
   ]);
+  const powerByGenerator = new Map(powerConfigurations.map((configuration) => [configuration.generator_id, configuration]));
+  const powerFilter = filters.power === "pending" ? "pending" : "all";
+  const generators = allGenerators.filter((generator) => powerFilter !== "pending" || powerByGenerator.get(generator.id)?.configuration_status === "not_configured");
   const clientNames = new Map(
     options.clients.map((client) => [client.id, client.legal_name]),
   );
@@ -149,7 +157,7 @@ export default async function GeneratorsPage({
           <h1>Geradores e alocações</h1>
           <p>
             Todo novo gerador nasce alocado e com os controladores de estado e
-            potência criados na mesma transação.
+            potência e o perfil nominal criados na mesma transação.
           </p>
         </div>
 
@@ -177,6 +185,7 @@ export default async function GeneratorsPage({
               <input name="identifier" required />
               <FieldError name="identifier" />
             </label>
+            <NominalPowerFields />
             <label>
               Início da alocação
               <input
@@ -221,7 +230,15 @@ export default async function GeneratorsPage({
         </details>
       </section>
 
-      <ListFilters status={status} />
+      <ListFilters status={status}>
+        <label>
+          Potência nominal
+          <select name="power" defaultValue={powerFilter}>
+            <option value="all">Todos os geradores</option>
+            <option value="pending">Configuração pendente</option>
+          </select>
+        </label>
+      </ListFilters>
 
       <section className="listing-card">
         <div className="table-wrap">
@@ -232,6 +249,7 @@ export default async function GeneratorsPage({
                 <th>Cliente</th>
                 <th>Alocação atual</th>
                 <th>Desde</th>
+                <th>Potência nominal</th>
                 <th>Telemetria</th>
                 <th>Status</th>
                 <th>Ações</th>
@@ -239,6 +257,7 @@ export default async function GeneratorsPage({
             </thead>
             <tbody>
               {generators.map((generator) => {
+                const power = powerByGenerator.get(generator.id);
                 const targetRooms = options.coldRooms.filter(
                   (room) =>
                     room.client_id === generator.client_id &&
@@ -284,6 +303,12 @@ export default async function GeneratorsPage({
                       {formatOperationalDate(
                         generator.currentAssignment?.valid_from ?? null,
                       )}
+                    </td>
+                    <td>
+                      {power?.power_profile_id ? (
+                        <><strong>{formatPower(power.nominal_power_w)}</strong><small className="table-secondary-line">Mínimo: {formatPower(power.minimum_acceptable_power_w)}</small><span className="power-configured">Configurada</span></>
+                      ) : <span className="power-pending">Configuração pendente</span>}
+                      <Link className="table-secondary-line record-link" href={`/admin/geradores/${generator.id}`}>Potência e histórico</Link>
                     </td>
                     <td>
                       <span className={`import-status ${generator.telemetry_status === "ready" ? "confirmed" : "processing"}`}>

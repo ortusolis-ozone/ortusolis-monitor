@@ -36,7 +36,7 @@ Regras para a execução:
 - [x] **12.3 — Reprocessamento e inconsistência de potência baixa** — concluída
   em 04/09/2026; revisada e validada em 09/09/2026.
 - [x] **12.4 — Contratos administrativos de servidor** — concluída em 09/09/2026.
-- [ ] **12.5 — Experiência administrativa do gerador** — não iniciada.
+- [x] **12.5 — Experiência administrativa do gerador** — concluída em 09/09/2026.
 - [ ] **12.6 — Integração com a importação conjunta** — não iniciada.
 - [ ] **12.7 — Diagnóstico técnico do Master** — não iniciada.
 - [ ] **12.8 — Contrato sanitizado do cliente** — não iniciada.
@@ -198,6 +198,36 @@ gerenciável pelo Master.
 **Concluída quando:** um novo gerador não puder ser salvo sem potência nominal
 positiva no navegador, no servidor ou no banco; uma edição criar nova vigência;
 e testes de componente/servidor cobrirem a prévia e os estados do formulário.
+
+**Entrega — 09/09/2026:** cadastro individual e cadastro de estrutura completa
+exigem potência nominal positiva, com prévia exata de 85% somente para leitura.
+O formulário explica a diferença entre potência do gerador e limites do
+controlador. A lista apresenta nominal vigente, mínimo e situação, oferece o
+filtro `Configuração pendente` e liga ao detalhe em `/admin/geradores/[id]`.
+O detalhe permite configurar legados e registrar nova vigência em horário de
+Fortaleza, preservando valores e períodos anteriores no histórico.
+
+A migration `20260909174038_require_nominal_power_for_new_generators.sql`
+acrescenta uma constraint trigger diferida que exige perfil para todo gerador
+novo ao concluir a transação. INSERT direto e RPCs legadas não conseguem
+concluir um cadastro sem potência; os contratos antigos permanecem como
+primitivas de composição dos novos cadastros. Geradores anteriores à migration
+não são preenchidos nem revalidados automaticamente. O cadastro completo passa
+a usar `register_complete_client_structure_with_power_profile`.
+
+Validação: 83 testes de aplicação, 15 arquivos SQL, typecheck, lint, lint SQL e
+build de produção aprovados. Testes de componente cobrem vazio, inválido,
+prévia exata, salvando, erro com foco e anúncio acessível, reset e fuso da nova
+vigência. No navegador, foram verificados cadastro de 72 W com mínimo de
+61,2 W, rejeição de data conflitante, nova vigência de 100 W com mínimo de 85 W,
+preservação do histórico e filtro de pendentes. Desktop e viewport de 390 px
+sem transbordamento da página ou erro de renderização. Tipos regenerados;
+migration aplicada somente no banco local; dados sintéticos removidos após a
+verificação. A tarefa 12.6 permanece não iniciada.
+
+O `npm audit` também identificou alertas preexistentes em `next` (crítico),
+`sharp` e `js-yaml` (altos), presentes antes das novas dependências de teste.
+A atualização dessas dependências não faz parte desta entrega.
 
 ### Tarefa 12.6 — Integração com a importação conjunta
 

@@ -9,6 +9,8 @@ import { getRequestOrigin } from "@/lib/auth/url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isValidCnpj, normalizeCnpj } from "@/lib/validation/cnpj";
+import { createGeneratorWithPowerProfileAction } from "./power-profiles/actions";
+import { parseNominalPower } from "./power-profiles/validation";
 
 import {
   isAssignableClientRole,
@@ -197,6 +199,10 @@ export async function createCompleteClientStructureAction(
   formData: FormData,
 ): Promise<OperationalActionState> {
   await requireMaster();
+  const nominalPower = parseNominalPower(formData.get("nominal_power_w"));
+  if (nominalPower === null) {
+    return fieldError("nominal_power_w", "Informe uma potência positiva com até três casas decimais.");
+  }
 
   const clientLegalName = formText(formData, "client_legal_name");
   const clientCnpj = normalizeCnpj(formText(formData, "client_cnpj"));
@@ -341,7 +347,7 @@ export async function createCompleteClientStructureAction(
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(
-    "register_complete_client_structure_v2",
+    "register_complete_client_structure_with_power_profile",
     {
       p_client_legal_name: clientLegalName,
       p_client_cnpj: clientCnpj,
@@ -351,6 +357,7 @@ export async function createCompleteClientStructureAction(
       p_cold_room_name: coldRoomName,
       p_cold_room_category: coldRoomCategory,
       p_generator_identifier: generatorIdentifier,
+      p_nominal_power_w: nominalPower,
       p_generator_valid_from: generatorValidFrom,
       p_state_controller_identifier: stateControllerIdentifier,
       p_state_controller_activated_on: stateControllerActivatedOn,
@@ -639,111 +646,10 @@ export async function setColdRoomStatusAction(
 }
 
 export async function createGeneratorAction(
-  _previousState: OperationalActionState,
+  previousState: OperationalActionState,
   formData: FormData,
 ): Promise<OperationalActionState> {
-  await requireMaster();
-  const coldRoomId = formText(formData, "cold_room_id");
-  const identifier = formText(formData, "identifier");
-  const validFrom = formText(formData, "valid_from");
-  const stateControllerIdentifier = formText(
-    formData,
-    "state_controller_identifier",
-  );
-  const powerControllerIdentifier = formText(
-    formData,
-    "power_controller_identifier",
-  );
-  const powerControllerDeviceId = formText(
-    formData,
-    "power_controller_device_id",
-  );
-  const powerOnThresholdW = formNumber(formData, "power_on_threshold_w");
-  const powerOffThresholdW = formNumber(formData, "power_off_threshold_w");
-  const correlationToleranceSeconds = formNumber(
-    formData,
-    "correlation_tolerance_seconds",
-  );
-  const invalidRoom = validateId(coldRoomId, "cold_room_id");
-
-  if (invalidRoom) return invalidRoom;
-  if (!identifier) {
-    return fieldError("identifier", "Informe a identificação do gerador.");
-  }
-  if (!isValidDate(validFrom)) {
-    return fieldError("valid_from", "Informe uma data inicial válida.");
-  }
-  if (!stateControllerIdentifier) {
-    return fieldError(
-      "state_controller_identifier",
-      "Informe o controlador de estado.",
-    );
-  }
-  if (!powerControllerIdentifier) {
-    return fieldError(
-      "power_controller_identifier",
-      "Informe o controlador de potência.",
-    );
-  }
-  if (!powerControllerDeviceId) {
-    return fieldError(
-      "power_controller_device_id",
-      "Informe o Device ID da telemetria.",
-    );
-  }
-  if (
-    powerOnThresholdW === null ||
-    powerOffThresholdW === null ||
-    powerOffThresholdW < 0 ||
-    powerOffThresholdW >= powerOnThresholdW
-  ) {
-    return fieldError(
-      "power_on_threshold_w",
-      "O limite de ligado deve ser maior que o de desligado.",
-    );
-  }
-  if (
-    correlationToleranceSeconds === null ||
-    !Number.isInteger(correlationToleranceSeconds) ||
-    correlationToleranceSeconds < 0 ||
-    correlationToleranceSeconds > 86400
-  ) {
-    return fieldError(
-      "correlation_tolerance_seconds",
-      "Informe uma tolerância inteira entre 0 e 86.400 segundos.",
-    );
-  }
-
-  const supabase = await createClient();
-  const { data: room } = await supabase
-    .from("cold_rooms")
-    .select("client_id, location_id")
-    .eq("id", coldRoomId)
-    .maybeSingle();
-
-  if (!room) {
-    return fieldError("cold_room_id", "Selecione uma câmara válida.");
-  }
-
-  const { error } = await supabase.rpc("register_generator_v2", {
-    p_client_id: room.client_id,
-    p_location_id: room.location_id,
-    p_cold_room_id: coldRoomId,
-    p_identifier: identifier,
-    p_valid_from: validFrom,
-    p_state_controller_identifier: stateControllerIdentifier,
-    p_state_controller_activated_on: validFrom,
-    p_power_controller_identifier: powerControllerIdentifier,
-    p_power_controller_device_id: powerControllerDeviceId,
-    p_power_controller_activated_on: validFrom,
-    p_power_on_threshold_w: powerOnThresholdW,
-    p_power_off_threshold_w: powerOffThresholdW,
-    p_correlation_tolerance_seconds: correlationToleranceSeconds,
-  });
-
-  return error
-    ? databaseError(error, "cold_room_id")
-    : success("Gerador cadastrado e alocado com sucesso.");
+  return createGeneratorWithPowerProfileAction(previousState, formData);
 }
 
 export async function editGeneratorAction(

@@ -118,3 +118,7 @@ export function FieldError({ name }: { name: string }) {
     </span>
   ) : null;
 }
+
+export function useOperationalFieldError(name: string) {
+  return useContext(ActionStateContext).fieldErrors?.[name];
+}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NominalPowerFields } from "@/components/nominal-power-fields";
 
 import { FieldError, OperationalForm } from "@/components/operational-form";
 import { createCompleteClientStructureAction } from "@/lib/operations/actions";
@@ -187,6 +188,7 @@ export default function NewCompleteClientStructurePage() {
                 </small>
                 <FieldError name="generator_valid_from" />
               </label>
+              <NominalPowerFields />
             </div>
           </fieldset>
 

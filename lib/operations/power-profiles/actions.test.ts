@@ -10,6 +10,7 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 import { createGeneratorWithPowerProfileAction, versionGeneratorPowerProfileAction } from "./actions";
 import { getGeneratorPowerConfigurations, getGeneratorPowerHistory } from "./queries";
 import { initialOperationalActionState as initial } from "../action-state";
+import { createCompleteClientStructureAction, createGeneratorAction } from "../actions";
 
 const id = "f5000000-0000-4000-8000-000000000001";
 const profileId = "f7000000-0000-4000-8000-000000000001";
@@ -32,6 +33,28 @@ beforeEach(() => {
 });
 
 describe("nominal power server contracts", () => {
+  test("the old server action now also requires nominal power", async () => {
+    const result = await createGeneratorAction(initial, form({ nominal_power_w: "" }));
+    expect(result.fieldErrors?.nominal_power_w).toBeTruthy();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  test("the complete structure rejects a missing nominal before creating a client", async () => {
+    const result = await createCompleteClientStructureAction(initial, form({ nominal_power_w: "" }));
+    expect(result.fieldErrors?.nominal_power_w).toBeTruthy();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  test("the complete structure uses the atomic nominal contract", async () => {
+    mocks.rpc.mockResolvedValue({ data: { client_id: id }, error: null });
+    await expect(createCompleteClientStructureAction(initial, form({
+      client_legal_name: "Cliente", client_cnpj: "04252011000110",
+      location_name: "Unidade", location_time_zone: "America/Fortaleza",
+      cold_room_name: "Câmara", cold_room_category: "flv",
+      generator_identifier: "Gerador", generator_valid_from: "2026-07-01",
+      state_controller_activated_on: "2026-07-01", power_controller_activated_on: "2026-07-01",
+    }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(mocks.rpc).toHaveBeenCalledWith("register_complete_client_structure_with_power_profile", expect.objectContaining({ p_nominal_power_w: "72.000" }));
+    expect(mocks.rpc.mock.calls[0][1]).not.toHaveProperty("p_minimum_acceptable_power_w");
+  });
   test("registers once and discards browser-supplied author, minimum and hierarchy", async () => {
     const result = await createGeneratorWithPowerProfileAction(initial, form({
       nominal_power_w: "9007199254740993.001", created_by: "spoofed", minimum_acceptable_power_w: "1",
