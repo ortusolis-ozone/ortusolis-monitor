@@ -34,7 +34,7 @@ Regras para a execução:
 - [x] **12.1 — Fundação dos perfis nominais** — concluída em 04/09/2026.
 - [x] **12.2 — Avaliação operacional determinística** — concluída em 04/09/2026.
 - [x] **12.3 — Reprocessamento e inconsistência de potência baixa** — concluída
-  em 04/09/2026.
+  em 04/09/2026; revisada e validada em 09/09/2026.
 - [ ] **12.4 — Contratos administrativos de servidor** — não iniciada.
 - [ ] **12.5 — Experiência administrativa do gerador** — não iniciada.
 - [ ] **12.6 — Integração com a importação conjunta** — não iniciada.
@@ -111,6 +111,15 @@ manter o ciclo de vida da inconsistência `power_below_expected`.
 **Concluída quando:** testes SQL demonstrarem criação única, repetição sem
 duplicidade, preservação após reconhecimento, resolução automática, escopo
 temporal do reprocessamento e ausência de resultado parcial.
+
+**Revisão de fechamento — 09/09/2026:** implementação mantida, com ampliação
+dos testes SQL para reconstrução completa, perda e recuperação da leitura após
+mudança do limite elétrico e encerramento da vigência do controlador. Os casos
+confirmam resolução automática, ausência de duplicidade e preservação do
+reconhecimento e comentário histórico. Suíte SQL completa aprovada (13 arquivos),
+novos casos da tarefa aprovados, typecheck e lint aprovados e 14 testes de
+aplicação aprovados. Tipos públicos conferidos contra o banco local, sem
+diferenças de contrato. A revisão não antecipa as tarefas 12.4 a 12.10.
 
 ### Tarefa 12.4 — Contratos administrativos de servidor
 

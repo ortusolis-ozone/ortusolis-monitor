@@ -828,6 +828,73 @@ begin
 end;
 $$;
 
+-- Exercise the production reconstruction path and configuration triggers,
+-- including loss and recovery of the reading used by a reviewed alert.
+do $$
+declare
+  reviewed_snapshot jsonb;
+begin
+  select to_jsonb(inconsistency) into strict reviewed_snapshot
+  from public.inconsistencies as inconsistency
+  where type = 'power_below_expected' and status = 'reviewed';
+
+  perform private.reprocess_all_generator_data(
+    'e5000000-0000-4000-8000-000000000001'
+  );
+
+  if not exists (
+    select 1 from public.inconsistencies as inconsistency
+    where to_jsonb(inconsistency) = reviewed_snapshot
+  ) then
+    raise exception 'a reconstrução completa alterou o alerta reconhecido';
+  end if;
+
+  update public.controllers set power_on_threshold_w = 95
+  where id = 'e6000000-0000-4000-8000-000000000002';
+
+  if exists (
+    select 1 from public.application_power_verifications
+    where generator_id = 'e5000000-0000-4000-8000-000000000001'
+      and operational_power_status <> 'not_evaluable'
+  ) or exists (
+    select 1 from public.inconsistencies
+    where type = 'power_below_expected' and status <> 'resolved'
+  ) then
+    raise exception 'a mudança de limite não resolveu alertas sem leitura válida';
+  end if;
+
+  update public.controllers set power_on_threshold_w = 5
+  where id = 'e6000000-0000-4000-8000-000000000002';
+
+  if not exists (
+    select 1 from public.inconsistencies as inconsistency
+    where to_jsonb(inconsistency) = reviewed_snapshot
+  ) or (
+    select count(*) from public.inconsistencies
+    where type = 'power_below_expected'
+  ) <> 2 then
+    raise exception 'a recuperação da leitura perdeu histórico ou duplicou alertas';
+  end if;
+
+  update public.controllers
+  set deactivated_at = '2026-07-01 00:00:00+00', is_active = false
+  where id = 'e6000000-0000-4000-8000-000000000002';
+
+  if (
+    select count(*) from public.inconsistencies
+    where type = 'power_below_expected' and status <> 'resolved'
+  ) <> 1 or not exists (
+    select 1 from public.inconsistencies as inconsistency
+    where to_jsonb(inconsistency) = reviewed_snapshot
+  ) then
+    raise exception 'a vigência do controlador não preservou somente o alerta histórico';
+  end if;
+
+  update public.controllers set deactivated_at = null, is_active = true
+  where id = 'e6000000-0000-4000-8000-000000000002';
+end;
+$$;
+
 select extensions.pass(
   'spec 12.3 operational power reprocessing tests passed'
 );
