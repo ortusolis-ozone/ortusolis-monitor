@@ -1315,6 +1315,81 @@ export type Database = {
           fingerprint: string
         }[]
       }
+      list_admin_application_power_diagnostics: {
+        Args: {
+          p_application_id?: number
+          p_generator_id?: string
+          p_offset?: number
+        }
+        Returns: {
+          application_id: number
+          client_name: string
+          cold_room_name: string
+          correlation_reason: string
+          correlation_status: string
+          difference_percent: string
+          difference_w: string
+          end_at: string
+          end_batch_id: string
+          end_event_id: number
+          end_file_name: string
+          evaluated_at: string
+          generator_id: string
+          generator_identifier: string
+          location_name: string
+          minimum_power_w: string
+          nominal_power_w: string
+          observed_power_w: string
+          operational_reason: string
+          operational_status: string
+          power_batch_id: string
+          power_controller_id: string
+          power_controller_identifier: string
+          power_file_name: string
+          power_profile_id: string
+          profile_valid_from: string
+          profile_valid_until: string
+          reference_reading_at: string
+          reference_reading_id: number
+          rule_version: string
+          start_at: string
+          start_event_id: number
+          state_batch_id: string
+          state_controller_id: string
+          state_controller_identifier: string
+          state_file_name: string
+        }[]
+      }
+      list_admin_application_power_inconsistencies: {
+        Args: { p_application_id: number }
+        Returns: {
+          created_at: string
+          id: number
+          power_profile_id: string
+          power_reading_id: number
+          resolved_at: string
+          review_note: string
+          reviewed_at: string
+          reviewed_by_name: string
+          status: string
+          type: string
+        }[]
+      }
+      list_admin_application_power_runs: {
+        Args: { p_application_id: number; p_offset?: number }
+        Returns: {
+          affected_from: string
+          affected_until: string
+          below_expected_count: number
+          id: number
+          not_configured_count: number
+          not_evaluable_count: number
+          processed_at: string
+          reason: string
+          rule_version: string
+          within_expected_count: number
+        }[]
+      }
       list_admin_generator_power_configuration: {
         Args: {
           p_at?: string
@@ -1452,6 +1527,23 @@ export type Database = {
           last_seen_at: string
           normalized_source: string
         }[]
+      }
+      preview_import_session: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id: string
+          p_generator_id: string
+          p_location_id: string
+          p_power_controller_id: string
+          p_power_file_name: string
+          p_power_file_sha256: string
+          p_power_readings: Json
+          p_state_controller_id: string
+          p_state_events: Json
+          p_state_file_name: string
+          p_state_file_sha256: string
+        }
+        Returns: Json
       }
       reactivate_controller: {
         Args: { p_controller_id: string }

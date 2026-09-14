@@ -154,6 +154,7 @@ export type ImportCoverageStatus =
   | "unknown";
 
 export type ImportSessionConfirmation = {
+  operationalSummary: ImportOperationalSummary;
   sessionId: string;
   alreadyConfirmed: boolean;
   coverageStatus: "full" | "partial";
@@ -307,3 +308,21 @@ export type ValidatedImportContext = ImportContext & {
   powerOnThresholdW: number | null;
   powerOffThresholdW: number | null;
 };
+
+export type ImportOperationalSummary = {
+  within_expected: number;
+  below_expected: number;
+  not_evaluable: number;
+  not_configured: number;
+  groups: { status: string; reason: string; count: number }[];
+  profiles: {
+    id: string;
+    valid_from: string;
+    valid_until: string | null;
+    nominal_power_w: string;
+    minimum_acceptable_power_w: string;
+  }[];
+};
+export type ImportSessionPreviewResult =
+  | { status: "error"; message: string }
+  | { status: "preview"; preview: ImportOperationalSummary };

@@ -9,9 +9,12 @@ import { createClient } from "@/lib/supabase/server";
 import { IMPORT_BUCKET, MAX_IMPORT_FILE_BYTES } from "./constants";
 import { validateImportContext } from "./context";
 import { ImportValidationError, parseImportWorkbook } from "./parser";
+import { isOperationalSummary, NOMINAL_PROFILE_REQUIRED_MESSAGE } from "./operational-summary";
 import { compareImportPeriods } from "./session";
 import type {
   ImportActionResult,
+  ImportOperationalSummary,
+  ImportSessionPreviewResult,
   ImportConfirmation,
   ImportConfirmationRequest,
   ImportContext,
@@ -123,6 +126,7 @@ function importConfirmation(value: StoredImportConfirmation): ImportConfirmation
 }
 
 function isSessionConfirmation(value: Json): value is Json & {
+  operational_summary: ImportOperationalSummary;
   session_id: string;
   already_confirmed: boolean;
   coverage_status: "full" | "partial";
@@ -140,6 +144,7 @@ function isSessionConfirmation(value: Json): value is Json & {
     typeof value === "object" &&
     value !== null &&
     !Array.isArray(value) &&
+    isOperationalSummary(value.operational_summary) &&
     typeof value.session_id === "string" &&
     typeof value.already_confirmed === "boolean" &&
     (value.coverage_status === "full" ||
@@ -420,9 +425,10 @@ export async function confirmXlsxImport(
   }
 }
 
-export async function confirmImportSession(
+async function processImportSession(
   request: ImportSessionConfirmationRequest,
-): Promise<ImportSessionActionResult> {
+  preview: boolean,
+): Promise<ImportSessionActionResult | ImportSessionPreviewResult> {
   const profile = await requireMaster();
 
   try {
@@ -431,6 +437,8 @@ export async function confirmImportSession(
       !request.context ||
       !request.state ||
       !request.power ||
+      !request.state.context ||
+      !request.power.context ||
       !sameHierarchy(request.state.context, request.power.context) ||
       request.context.clientId !== request.state.context.clientId ||
       request.context.locationId !== request.state.context.locationId ||
@@ -493,7 +501,7 @@ export async function confirmImportSession(
     }
 
     if (
-      coverage.status === "partial" &&
+      !preview && coverage.status === "partial" &&
       !request.coverageWarningAcknowledged
     ) {
       return errorResult(
@@ -514,13 +522,23 @@ export async function confirmImportSession(
       p_power_file_name: request.power.fileName,
       p_power_file_sha256: powerParsed.fileSha256,
       p_power_readings: powerParsed.readings.map(persistedPowerReading),
-      p_coverage_warning_acknowledged:
-        request.coverageWarningAcknowledged,
     };
-    const { data, error } = await stateLoaded.supabase.rpc(
-      "confirm_import_session",
-      rpcArguments,
-    );
+    const { data, error } = preview
+      ? await stateLoaded.supabase.rpc("preview_import_session", rpcArguments)
+      : await stateLoaded.supabase.rpc("confirm_import_session", {
+          ...rpcArguments,
+          p_coverage_warning_acknowledged: request.coverageWarningAcknowledged,
+        });
+
+    if (error?.code === "P1206") {
+      return errorResult(NOMINAL_PROFILE_REQUIRED_MESSAGE);
+    }
+    if (preview) {
+      if (error || !isOperationalSummary(data)) {
+        return errorResult("Não foi possível projetar a avaliação. Valide os arquivos novamente.");
+      }
+      return { status: "preview", preview: data };
+    }
 
     if (error || !data || !isSessionConfirmation(data)) {
       const administrativeMessage =
@@ -556,6 +574,7 @@ export async function confirmImportSession(
     }
 
     const confirmation: ImportSessionConfirmation = {
+      operationalSummary: data.operational_summary,
       sessionId: data.session_id,
       alreadyConfirmed: data.already_confirmed,
       coverageStatus: data.coverage_status,
@@ -582,4 +601,14 @@ export async function confirmImportSession(
       "Não foi possível confirmar a atualização. Nenhum lote parcial foi mantido.",
     );
   }
+}
+
+export async function previewImportSession(request: ImportSessionConfirmationRequest): Promise<ImportSessionPreviewResult> {
+  const result = await processImportSession(request, true);
+  return result.status === "confirmed" ? errorResult("Resposta inesperada da prévia.") : result;
+}
+
+export async function confirmImportSession(request: ImportSessionConfirmationRequest): Promise<ImportSessionActionResult> {
+  const result = await processImportSession(request, false);
+  return result.status === "preview" ? errorResult("Resposta inesperada da confirmação.") : result;
 }

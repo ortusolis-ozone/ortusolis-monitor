@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   confirmImportSession,
   previewXlsxImport,
+  previewImportSession,
 } from "@/lib/imports/actions";
 import {
   IMPORT_BUCKET,
@@ -19,6 +20,7 @@ import {
   type ImportCoverage,
 } from "@/lib/imports/session";
 import type {
+  ImportOperationalSummary,
   ImportContext,
   ImportControllerOption,
   ImportFormOptions,
@@ -28,6 +30,8 @@ import type {
   LatestImportSource,
 } from "@/lib/imports/types";
 import { createClient } from "@/lib/supabase/client";
+
+import { ImportOperationalPreview } from "./import-operational-preview";
 
 type SourceKey = "state" | "power";
 
@@ -339,6 +343,8 @@ export function ImportWorkflow({
   const [stateSlot, setStateSlot] = useState<SourceSlot>(emptySourceSlot);
   const [powerSlot, setPowerSlot] = useState<SourceSlot>(emptySourceSlot);
   const [coverageAcknowledged, setCoverageAcknowledged] = useState(false);
+  const [operationalPreview, setOperationalPreview] = useState<ImportOperationalSummary | null>(null);
+  const [projecting, setProjecting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [confirmation, setConfirmation] =
@@ -394,7 +400,7 @@ export function ImportWorkflow({
     (location) => location.id === selection.locationId,
   )?.timeZone;
   const contextComplete = Object.values(selection).every(Boolean);
-  const anyBusy = stateSlot.validating || powerSlot.validating || confirming;
+  const anyBusy = stateSlot.validating || powerSlot.validating || confirming || projecting;
   const stateFileStatus = sourceStatus(stateSlot);
   const powerFileStatus = sourceStatus(powerSlot);
   const statePreview =
@@ -438,6 +444,7 @@ export function ImportWorkflow({
   );
 
   function invalidateSession() {
+    setOperationalPreview(null);
     setCoverageAcknowledged(false);
     setSessionError(null);
     setConfirmation(null);
@@ -613,7 +620,7 @@ export function ImportWorkflow({
     }
   }
 
-  async function handleConfirmation() {
+  async function handleConfirmation(previewOnly = false) {
     if (
       !stateSlot.file ||
       !powerSlot.file ||
@@ -623,20 +630,26 @@ export function ImportWorkflow({
       !powerSlot.controllerId ||
       !coverage ||
       coverage.status === "no_intersection" ||
-      (coverage.status === "partial" && !coverageAcknowledged)
+      (!previewOnly && (coverage.status === "partial" && !coverageAcknowledged)) ||
+      (!previewOnly && !operationalPreview)
     ) {
       return;
     }
 
     if (
-      !window.confirm(
+      !previewOnly && !window.confirm(
         "Confirmar esta atualização conjunta de estado e potência?",
       )
     ) {
       return;
     }
 
-    setConfirming(true);
+    if (previewOnly) {
+      setProjecting(true);
+      setOperationalPreview(null);
+    } else {
+      setConfirming(true);
+    }
     setSessionError(null);
     setConfirmation(null);
     const uploadedPaths: string[] = [];
@@ -655,7 +668,7 @@ export function ImportWorkflow({
       );
       if (failedUpload) throw failedUpload.reason;
 
-      const response = await confirmImportSession({
+      const response = await (previewOnly ? previewImportSession : confirmImportSession)({
         context: selection,
         state: {
           objectPath: uploadedPaths[0],
@@ -675,10 +688,16 @@ export function ImportWorkflow({
       });
 
       if (response.status === "error") {
+        setOperationalPreview(null);
         setSessionError(response.message);
         return;
       }
 
+      if (response.status === "preview") {
+        setOperationalPreview(response.preview);
+        return;
+      }
+      setOperationalPreview(response.confirmation.operationalSummary);
       setConfirmation(response.confirmation);
       setStateSlot((current) => ({ ...current, confirmed: true }));
       setPowerSlot((current) => ({ ...current, confirmed: true }));
@@ -692,10 +711,12 @@ export function ImportWorkflow({
     } finally {
       await removeTemporaryFiles(uploadedPaths);
       setConfirming(false);
+      setProjecting(false);
     }
   }
 
   const confirmationDisabled =
+    !operationalPreview ||
     !coverage ||
     coverage.status === "no_intersection" ||
     (coverage.status === "partial" && !coverageAcknowledged) ||
@@ -1046,9 +1067,9 @@ export function ImportWorkflow({
             <span className={`session-status ${aggregateStatus}`} role="status">
               {aggregateStatus === "incomplete" && "Atualização incompleta"}
               {aggregateStatus === "validating" && "Validando fontes"}
-              {aggregateStatus === "ready" && "Pronta para confirmar"}
+              {aggregateStatus === "ready" && (operationalPreview ? "Pronta para confirmar" : "Avaliação pendente")}
               {aggregateStatus === "ready_with_warning" &&
-                "Pronta com aviso"}
+                (operationalPreview ? "Pronta com aviso" : "Avaliação pendente")}
               {aggregateStatus === "confirming" && "Confirmando atualização"}
               {aggregateStatus === "confirmed" && "Atualização confirmada"}
               {aggregateStatus === "failed" && "Confirmação bloqueada"}
@@ -1056,6 +1077,18 @@ export function ImportWorkflow({
           </div>
 
           <div className="session-compatibility-body">
+            {statePreview && powerPreview && coverage?.status !== "no_intersection" ? (
+              <>
+                <button className="secondary-button" type="button" disabled={anyBusy}
+                  onClick={() => handleConfirmation(true)}>
+                  {projecting ? "Projetando avaliação..." : "Projetar avaliação operacional"}
+                </button>
+                {!operationalPreview ? <p role="status">Projete a avaliação operacional antes de confirmar.</p> : null}
+              </>
+            ) : null}
+            {operationalPreview ? <ImportOperationalPreview summary={operationalPreview} /> : null}
+            {sessionError ? <a href={`/admin/geradores/${selection.generatorId}`}>Consultar configuração nominal do gerador</a> : null}
+
             {missingMessage ? (
               <p className="session-guidance">{missingMessage}</p>
             ) : null}
@@ -1160,7 +1193,7 @@ export function ImportWorkflow({
             <button
               className="primary-button"
               disabled={confirmationDisabled || anyBusy}
-              onClick={handleConfirmation}
+              onClick={() => handleConfirmation()}
               type="button"
             >
               {confirming ? "Confirmando atualização..." : "Confirmar atualização"}

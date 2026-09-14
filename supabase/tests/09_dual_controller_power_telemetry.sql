@@ -58,6 +58,9 @@ begin
     120
   );
 
+  insert into public.generator_power_profiles (generator_id, nominal_power_w, valid_from, created_by)
+  values (generator_id_value, 5, '2026-08-01', auth.uid());
+
   select controller.id into state_controller_id
   from public.controllers as controller
   where controller.generator_id = generator_id_value
