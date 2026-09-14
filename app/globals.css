@@ -2779,3 +2779,11 @@ details[open] > summary .details-indicator::after {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.application-diagnostic > .power-detail-card { margin-bottom: 1.25rem; }
+.application-diagnostic .power-values,
+.application-diagnostic .power-detail-grid { min-width: 0; }
+.application-diagnostic dd,
+.application-diagnostic small,
+.application-diagnostic .inconsistency-card p { overflow-wrap: anywhere; }
+.application-diagnostic .power-detail-grid > div { min-width: 0; }

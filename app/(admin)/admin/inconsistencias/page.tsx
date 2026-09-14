@@ -200,6 +200,8 @@ function InconsistencyCard({ item }: { item: AdminInconsistency }) {
         {item.generator_identifier} · referência de {formatAdminDate(item.public_date)}
       </p>
 
+      <Link className="text-link" href={`/admin/geradores/${item.generator_id}#aplicacoes`}>Consultar diagnósticos das aplicações do gerador</Link>
+      {item.type === "power_below_expected" ? <p>Reconhecimento e nota interna registram acompanhamento. O resultado abaixo do esperado permanece enquanto a avaliação indicar redução. Verifique o equipamento e a coleta.</p> : null}
       <div className="technical-event-grid">
         <TechnicalEvent
           controllerIdentifier={item.event_controller_identifier}

@@ -20,6 +20,8 @@ function parseInconsistencyId(formData: FormData) {
 function revalidateInconsistencyViews() {
   revalidatePath("/admin");
   revalidatePath("/admin/inconsistencias");
+  revalidatePath("/admin/aplicacoes/[id]", "page");
+  revalidatePath("/admin/geradores/[id]", "page");
 }
 
 export async function reviewInconsistencyAction(
@@ -145,6 +147,8 @@ export async function setSourceMappingAction(
 
   revalidatePath("/admin");
   revalidatePath("/admin/inconsistencias");
+  revalidatePath("/admin/aplicacoes/[id]", "page");
+  revalidatePath("/admin/geradores/[id]", "page");
   revalidatePath("/admin/mapeamentos");
   revalidatePath("/admin/importacoes");
 

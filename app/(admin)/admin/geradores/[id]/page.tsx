@@ -5,12 +5,20 @@ import { getGeneratorPowerConfigurations, getGeneratorPowerHistory } from "@/lib
 import { formatPower, formatPowerDate } from "@/lib/operations/power-profiles/format";
 import { isUuid } from "@/lib/operations/power-profiles/validation";
 
-export default async function GeneratorPowerPage({ params }: { params: Promise<{ id: string }> }) {
+import { getGeneratorApplicationDiagnostics, parseDiagnosticPage } from "@/lib/admin/power-diagnostics";
+import { correlationLabels, operationalLabels } from "@/lib/admin/power-diagnostic-labels";
+
+export default async function GeneratorPowerPage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ applications_page?: string }>;
+}) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const [configurations, history] = await Promise.all([
+  const page = parseDiagnosticPage((await searchParams).applications_page);
+  const [configurations, history, applications] = await Promise.all([
     getGeneratorPowerConfigurations({ generatorId: id }),
     getGeneratorPowerHistory(id),
+    getGeneratorApplicationDiagnostics(id, page),
   ]);
   const current = configurations[0];
   if (!current) notFound();
@@ -62,6 +70,22 @@ export default async function GeneratorPowerPage({ params }: { params: Promise<{
             <small>Registrado em {formatPowerDate(profile.created_at)}</small>
           </li>)}
         </ol> : <p className="empty-state">Este gerador ainda não possui perfil nominal.</p>}
+      </section>
+      <section className="power-detail-card" id="aplicacoes" aria-labelledby="applications-title">
+        <h2 id="applications-title">Aplicações e diagnóstico de potência</h2>
+        {applications.length ? <div className="table-wrap"><table>
+          <thead><tr><th>Aplicação</th><th>Início</th><th>Correlação elétrica</th><th>Avaliação operacional</th></tr></thead>
+          <tbody>{applications.map(application => <tr key={application.application_id}>
+            <td><Link className="text-link" href={`/admin/aplicacoes/${application.application_id}`}>Diagnóstico #{application.application_id}</Link></td>
+            <td>{formatPowerDate(application.start_at)}</td>
+            <td>{correlationLabels[application.correlation_status] ?? application.correlation_status}</td>
+            <td>{operationalLabels[application.operational_status] ?? application.operational_status}</td>
+          </tr>)}</tbody>
+        </table></div> : <p>Nenhuma aplicação nesta página.</p>}
+        <nav className="filter-actions" aria-label="Páginas de aplicações">
+          {page > 0 ? <Link href={`?applications_page=${page - 1}#aplicacoes`}>Página anterior</Link> : null}
+          {applications.length === 50 ? <Link href={`?applications_page=${page + 1}#aplicacoes`}>Próxima página</Link> : null}
+        </nav>
       </section>
     </main>
   );

@@ -16,6 +16,7 @@ export const inconsistencyTypes = [
   { value: "missing_power_on", label: "Potência ligada ausente" },
   { value: "missing_power_off", label: "Potência desligada ausente" },
   { value: "missing_power_both", label: "Potência ligada e desligada ausentes" },
+  { value: "power_below_expected", label: "Potência abaixo do esperado" },
   { value: "unexpected_power", label: "Potência ligada sem aplicação" },
 ] as const;
 

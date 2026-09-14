@@ -37,8 +37,8 @@ Regras para a execução:
   em 04/09/2026; revisada e validada em 09/09/2026.
 - [x] **12.4 — Contratos administrativos de servidor** — concluída em 09/09/2026.
 - [x] **12.5 — Experiência administrativa do gerador** — concluída em 09/09/2026.
-- [ ] **12.6 — Integração com a importação conjunta** — não iniciada.
-- [ ] **12.7 — Diagnóstico técnico do Master** — não iniciada.
+- [x] **12.6 — Integração com a importação conjunta** — concluída em 14/09/2026.
+- [x] **12.7 — Diagnóstico técnico do Master** — concluída em 14/09/2026.
 - [ ] **12.8 — Contrato sanitizado do cliente** — não iniciada.
 - [ ] **12.9 — Experiência do portal e retirada do contrato antigo** — não
   iniciada.
@@ -252,6 +252,39 @@ duplicar lógica de domínio.
 sem perfil, perfis que mudam no período, contagens projetadas iguais às
 confirmadas, falha atômica e reimportação idempotente.
 
+**Entrega — 14/09/2026:** migration
+`20260914135727_nominal_power_joint_import_preview.sql`, aplicada somente no
+banco local. A RPC `preview_import_session` executa a confirmação canônica em
+uma subtransação revertida antes do retorno: lotes, fontes, aplicações,
+inconsistências e auditoria não são persistidos pela prévia. A confirmação
+continua transacional e idempotente, com bloqueio por gerador. Como em outras
+transações revertidas do PostgreSQL, sequências podem avançar sem criar linhas.
+
+O resumo considera as aplicações alcançadas pelos períodos dos lotes, inclusive
+pares nas fronteiras e a tolerância de correlação da potência. Ele apresenta
+perfis efetivamente usados, vigências, nominal e mínimo como decimais em texto,
+contagens operacionais e agrupamentos por motivo. Prévia e confirmação rejeitam
+aplicações sem perfil no instante de início; a revalidação também protege a
+confirmação contra configuração alterada após a prévia. O processamento dos
+contratos individuais legados aplica a mesma proteção às aplicações afetadas,
+sem preencher automaticamente o histórico.
+
+Na interface, após validar os dois arquivos, o Master aciona `Projetar avaliação
+operacional`. A confirmação fica bloqueada até a projeção válida e mudanças de
+arquivo, controlador ou contexto invalidam o resultado. Falta de perfil orienta
+a completar a configuração do gerador, sem comunicar potência baixa. Os dois
+arquivos são novamente lidos, validados e comparados por hash tanto na projeção
+quanto na confirmação; o resumo confirmado vem do processamento real.
+
+Validação: 96 testes de aplicação, 16 arquivos SQL, typecheck, lint, lint SQL dos
+schemas `public` e `private` e build de produção aprovados. Cobertura inclui
+bloqueio sem perfil e com cobertura nominal incompleta, fronteira de vigência,
+igualdade em 61,2 W, três estados projetados iguais aos confirmados, rollback da
+prévia e de falha na segunda fonte, reimportação idempotente, acesso de Master,
+rejeição de cliente/anon, revalidação dos dois arquivos, mensagens sanitizadas
+e invalidação da projeção na interface. Tipos públicos regenerados. As tarefas
+12.7 a 12.10 permanecem não iniciadas.
+
 ### Tarefa 12.7 — Diagnóstico técnico do Master
 
 **Objetivo:** oferecer ao Master evidência suficiente para investigar cada
@@ -272,6 +305,38 @@ aplicação sem alterar o cálculo por ações administrativas.
 **Concluída quando:** queries retornarem o diagnóstico completo somente ao
 Master, a interface distinguir todos os estados e testes assegurarem que ações
 administrativas não alteram `below_expected`.
+
+**Entrega — 14/09/2026:** migration
+`20260914141526_admin_application_power_diagnostics.sql`, aplicada somente no
+banco local. Três contratos administrativos retornam, com validação de papel no
+banco, o diagnóstico de cada aplicação, as inconsistências vinculadas e o
+histórico de reprocessamentos cujo intervalo alcança o início da aplicação.
+Clientes e `anon` não conseguem executar as consultas; a tabela privada de
+execuções permanece sem acesso direto.
+
+O detalhe do gerador agora lista as aplicações com o estado de correlação e o
+estado operacional lado a lado e liga ao diagnóstico em
+`/admin/aplicacoes/[id]`. O detalhe mostra os snapshots de nominal, mínimo e
+observado, diferença absoluta e percentual em relação ao nominal, leitura de
+referência, controladores, lotes, arquivos, eventos e perfil de origem. Os
+estados `not_evaluable` e `not_configured` recebem motivos e orientações
+próprios, sem serem apresentados como redução de potência.
+
+Inconsistências pendentes, reconhecidas e resolvidas ficam associadas ao
+diagnóstico com nota, responsável e datas disponíveis. Reconhecimento,
+comentário e reabertura continuam sendo acompanhamento administrativo: não
+alteram os snapshots nem transformam `below_expected` em resultado normal. A
+orientação da tela recomenda verificar equipamento e coleta e esclarece que a
+leitura pontual não comprova defeito nem ausência de geração de ozônio.
+
+Validação: 116 testes de aplicação e 17 arquivos SQL aprovados, incluindo os
+quatro estados operacionais, valores decimais exatos, origem completa,
+paginação, autorização, preservação de `below_expected` após reconhecimento e
+reabertura e histórico após resolução automática. Typecheck, lint e lint SQL
+dos schemas `public` e `private` aprovados. O layout sintético foi inspecionado
+em desktop e em 390 px, sem transbordamento horizontal e com as quatro seções
+acessíveis. Tipos públicos regenerados. As tarefas 12.8 a 12.10 permanecem não
+iniciadas.
 
 ### Tarefa 12.8 — Contrato sanitizado do cliente
 
