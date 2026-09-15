@@ -27,6 +27,7 @@ Abra [http://localhost:3000](http://localhost:3000).
 ## Verificações
 
 ```bash
+npm test
 npm run lint
 npm run typecheck
 npm run build
@@ -45,4 +46,10 @@ As decisões e a ordem de implementação estão em [`docs/specs`](./docs/specs/
 
 - Somente variáveis prefixadas com `NEXT_PUBLIC_` podem chegar ao navegador.
 - Chaves administrativas permanecem sem esse prefixo e serão acessadas apenas por módulos marcados como `server-only`.
-- O portal do cliente consumirá apenas dados sanitizados.
+- O portal do cliente consome apenas dados sanitizados pela RPC `list_client_application_status`.
+
+## Operação
+
+Consulte o [guia de potência nominal](docs/operacao/potencia-nominal.md) para
+cadastro, vigência, importação conjunta, investigação, auditoria e comunicação
+ao cliente.

@@ -2320,7 +2320,7 @@ tbody tr:last-child td {
   color: var(--color-text-neutral);
 }
 
-.public-status-badge.completed {
+.public-status-badge.registered {
   background: var(--color-success-surface);
   color: var(--color-success);
 }
@@ -2455,28 +2455,6 @@ details[open] > summary .details-indicator::after {
   display: block;
   margin-top: 0.1rem;
   font-size: var(--font-size-body);
-}
-
-.power-evidence {
-  display: grid;
-  max-width: 15rem;
-  gap: 0.1rem;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-micro);
-  line-height: var(--leading-standard);
-}
-
-.power-evidence strong {
-  color: var(--color-ink);
-  font-size: var(--font-size-caption);
-}
-
-.power-evidence.confirmed strong {
-  color: var(--color-success);
-}
-
-.power-evidence.requires_review strong {
-  color: var(--color-danger);
 }
 
 .portal-node-empty {
@@ -2787,3 +2765,6 @@ details[open] > summary .details-indicator::after {
 .application-diagnostic small,
 .application-diagnostic .inconsistency-card p { overflow-wrap: anywhere; }
 .application-diagnostic .power-detail-grid > div { min-width: 0; }
+
+.portal-attention { display: grid; gap: 0.35rem; max-width: 30rem; padding: 0.65rem; border-left: 3px solid #98620a; background: #fff6df; color: #684307; white-space: normal; }
+.portal-attention small { line-height: 1.5; }

@@ -1,5 +1,8 @@
 begin;
 
+-- The publication calendar uses the location timezone, including near UTC midnight.
+set local time zone 'America/Fortaleza';
+
 select extensions.plan(1);
 
 insert into public.clients (id, legal_name, cnpj)

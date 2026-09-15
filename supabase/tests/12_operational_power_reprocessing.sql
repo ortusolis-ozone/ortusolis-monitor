@@ -895,6 +895,38 @@ begin
 end;
 $$;
 
+-- Final audit: derived transitions are explicit, with no duplicate on a no-op.
+do $$
+declare
+  before_audit bigint;
+begin
+  if exists (
+    select required.action
+    from (values ('power_below_expected_created'), ('power_below_expected_resolved'),
+      ('power_below_expected_reactivated')) as required(action)
+    where not exists (
+      select 1 from public.audit_logs as audit
+      where audit.action = required.action and audit.entity_type = 'inconsistencies'
+    )
+  ) then
+    raise exception 'ciclo operacional não possui auditoria de criação, resolução e reativação';
+  end if;
+
+  select count(*) into before_audit from public.audit_logs
+  where action like 'power_below_expected_%';
+  perform private.reprocess_operational_power('e5000000-0000-4000-8000-000000000001');
+  if (select count(*) from public.audit_logs where action like 'power_below_expected_%') <> before_audit then
+    raise exception 'reprocessamento idempotente duplicou eventos de auditoria';
+  end if;
+
+  if has_function_privilege('authenticated', 'private.audit_operational_power_lifecycle()', 'execute')
+    or has_function_privilege('anon', 'private.audit_operational_power_lifecycle()', 'execute')
+    or has_table_privilege('authenticated', 'public.audit_logs', 'select') then
+    raise exception 'auditoria operacional foi exposta ao cliente';
+  end if;
+end;
+$$;
+
 select extensions.pass(
   'spec 12.3 operational power reprocessing tests passed'
 );

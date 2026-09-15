@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { logOperationalFailure } from "@/lib/operations/log-failure";
 import { requireMaster } from "@/lib/auth/profile";
 import {
   fieldError,
@@ -50,7 +51,7 @@ export async function reviewInconsistencyAction(
   });
 
   if (error) {
-    console.error("Falha ao revisar inconsistência", error);
+    logOperationalFailure("inconsistency_review", error);
     return {
       status: "error",
       message: "Não foi possível concluir a revisão. Tente novamente.",
@@ -88,7 +89,7 @@ export async function reopenInconsistencyAction(
   });
 
   if (error) {
-    console.error("Falha ao reabrir inconsistência", error);
+    logOperationalFailure("inconsistency_reopen", error);
     return {
       status: "error",
       message: "Não foi possível reabrir a revisão. Tente novamente.",
@@ -138,7 +139,7 @@ export async function setSourceMappingAction(
   });
 
   if (error) {
-    console.error("Falha ao atualizar mapeamento de origem", error);
+    logOperationalFailure("source_mapping_update", error);
     return {
       status: "error",
       message: "Não foi possível salvar o mapeamento. Tente novamente.",

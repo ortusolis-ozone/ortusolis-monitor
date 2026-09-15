@@ -340,9 +340,8 @@ begin
 
   if not exists (
     select 1
-    from public.client_daily_status
+    from public.list_client_application_status()
     where client_id = '91000000-0000-4000-8000-000000000001'
-      and power_evidence_status = 'requires_review'
   ) then
     raise exception 'o cliente não recebeu a publicação qualitativa autorizada';
   end if;

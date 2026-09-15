@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import {
   consolidatePortalStatuses,
-  isPowerEvidenceStatus,
+  isAttentionStatus,
   isPortalStatus,
 } from "./constants";
 import type {
@@ -18,15 +18,7 @@ import type {
   ResolvedPortalFilters,
 } from "./types";
 
-type PortalDailyStatusRow = Pick<
-  Database["public"]["Tables"]["client_daily_status"]["Row"],
-  | "location_id"
-  | "cold_room_id"
-  | "generator_id"
-  | "status_date"
-  | "status"
-  | "power_evidence_status"
->;
+type PortalDailyStatusRow = Database["public"]["Functions"]["list_client_application_status"]["Returns"][number];
 
 const PAGE_SIZE = 1000;
 
@@ -49,15 +41,6 @@ function isoDateToday() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-}
-
-function isoDateInPortalTimeZone(value: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Fortaleza",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(value));
 }
 
 function shiftIsoDate(value: string, days: number) {
@@ -92,37 +75,19 @@ function resolveFilters(
 
 async function getDailyStatusRows(
   supabase: SupabaseClient<Database>,
-  clientId: string,
   filters: ResolvedPortalFilters,
 ) {
   const rows: PortalDailyStatusRow[] = [];
 
   for (let offset = 0; ; offset += PAGE_SIZE) {
-    let query = supabase
-      .from("client_daily_status")
-      .select(
-        "location_id, cold_room_id, generator_id, status_date, status, power_evidence_status",
-      )
-      .eq("client_id", clientId)
-      .gte("status_date", filters.startDate)
-      .lte("status_date", filters.endDate);
-
-    if (filters.locationId) {
-      query = query.eq("location_id", filters.locationId);
-    }
-
-    if (filters.coldRoomId) {
-      query = query.eq("cold_room_id", filters.coldRoomId);
-    }
-
-    if (filters.generatorId) {
-      query = query.eq("generator_id", filters.generatorId);
-    }
-
-    const { data, error } = await query
-      .order("status_date", { ascending: false })
-      .order("generator_id", { ascending: true })
-      .range(offset, offset + PAGE_SIZE - 1);
+    const { data, error } = await supabase.rpc("list_client_application_status", {
+      p_start_date: filters.startDate,
+      p_end_date: filters.endDate,
+      p_location_id: filters.locationId,
+      p_cold_room_id: filters.coldRoomId,
+      p_generator_id: filters.generatorId,
+      p_offset: offset,
+    });
     const page = assertData(data, error, "o histórico de registros");
 
     rows.push(...page);
@@ -135,12 +100,11 @@ async function getDailyStatusRows(
 
 async function getOverviewStatusRows(
   supabase: SupabaseClient<Database>,
-  clientId: string,
   statusDate: string | null,
 ) {
   if (!statusDate) return [];
 
-  return getDailyStatusRows(supabase, clientId, {
+  return getDailyStatusRows(supabase, {
     startDate: statusDate,
     endDate: statusDate,
     dateRangeWasAdjusted: false,
@@ -149,28 +113,19 @@ async function getOverviewStatusRows(
 
 async function getVerificationStatusRows(
   supabase: SupabaseClient<Database>,
-  clientId: string,
 ) {
   const rows: PortalDailyStatusRow[] = [];
 
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const { data, error } = await supabase
-      .from("client_daily_status")
-      .select(
-        "location_id, cold_room_id, generator_id, status_date, status, power_evidence_status",
-      )
-      .eq("client_id", clientId)
-      .eq("status", "verification_required")
-      .order("status_date", { ascending: false })
-      .order("generator_id", { ascending: true })
-      .range(offset, offset + PAGE_SIZE - 1);
+      .rpc("list_client_application_status", { p_offset: offset });
     const page = assertData(
       data,
       error,
       "os registros que precisam de verificação",
     );
 
-    rows.push(...page);
+    rows.push(...page.filter((row) => row.application_status === "verification_required"));
 
     if (page.length < PAGE_SIZE) {
       return rows;
@@ -226,8 +181,8 @@ function buildOverview(
 
   for (const row of statusRows) {
     if (
-      !isPortalStatus(row.status) ||
-      !isPowerEvidenceStatus(row.power_evidence_status)
+      !isPortalStatus(row.application_status) ||
+      !isAttentionStatus(row.attention_status)
     ) continue;
 
     const location = overviewByLocation.get(row.location_id);
@@ -240,8 +195,8 @@ function buildOverview(
     room.generators.push({
       id: row.generator_id,
       identifier,
-      status: row.status,
-      powerEvidenceStatus: row.power_evidence_status,
+      status: row.application_status,
+      attentionStatus: row.attention_status,
     });
   }
 
@@ -303,7 +258,6 @@ export async function getPortalPageData(
     coldRoomsResponse,
     generatorsResponse,
     latestStatusResponse,
-    latestUpdateResponse,
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -326,17 +280,7 @@ export async function getPortalPageData(
       .eq("client_id", profile.clientId)
       .order("identifier"),
     supabase
-      .from("client_daily_status")
-      .select("status_date")
-      .eq("client_id", profile.clientId)
-      .order("status_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("client_daily_status")
-      .select("updated_at")
-      .eq("client_id", profile.clientId)
-      .order("updated_at", { ascending: false })
+      .rpc("list_client_application_status")
       .limit(1)
       .maybeSingle(),
   ]);
@@ -361,7 +305,7 @@ export async function getPortalPageData(
     "os geradores da empresa",
   );
 
-  if (latestStatusResponse.error || latestUpdateResponse.error) {
+  if (latestStatusResponse.error) {
     throw new Error("Não foi possível carregar a atualização dos registros.");
   }
 
@@ -369,9 +313,9 @@ export async function getPortalPageData(
   const filters = resolveFilters(requestedFilters, overviewDate);
   const [overviewStatusRows, verificationStatusRows, historyStatusRows] =
     await Promise.all([
-      getOverviewStatusRows(supabase, profile.clientId, overviewDate),
-      getVerificationStatusRows(supabase, profile.clientId),
-      getDailyStatusRows(supabase, profile.clientId, filters),
+      getOverviewStatusRows(supabase, overviewDate),
+      getVerificationStatusRows(supabase),
+      getDailyStatusRows(supabase, filters),
     ]);
   const locationNames = new Map(
     locations.map((location) => [location.id, location.name]),
@@ -412,16 +356,14 @@ export async function getPortalPageData(
 
   return {
     clientName: client.legal_name,
-    updatedThrough: latestUpdateResponse.data?.updated_at
-      ? isoDateInPortalTimeZone(latestUpdateResponse.data.updated_at)
-      : null,
+    updatedThrough: overviewDate,
     overviewDate,
     ...overviewData,
     verificationItems,
     history: historyStatusRows.flatMap((row) => {
       if (
-        !isPortalStatus(row.status) ||
-        !isPowerEvidenceStatus(row.power_evidence_status)
+        !isPortalStatus(row.application_status) ||
+        !isAttentionStatus(row.attention_status)
       ) return [];
 
       return [
@@ -436,8 +378,8 @@ export async function getPortalPageData(
           generatorId: row.generator_id,
           generatorIdentifier:
             generatorNames.get(row.generator_id) ?? "Gerador indisponível",
-          status: row.status,
-          powerEvidenceStatus: row.power_evidence_status,
+          status: row.application_status,
+          attentionStatus: row.attention_status,
         },
       ];
     }),

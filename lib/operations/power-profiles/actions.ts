@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { logOperationalFailure } from "../log-failure";
 import { requireMaster } from "@/lib/auth/profile";
 import { createClient } from "@/lib/supabase/server";
 import { fieldError, type OperationalActionState } from "../action-state";
@@ -59,6 +60,7 @@ export async function createGeneratorWithPowerProfileAction(
     p_power_off_threshold_w: off,
     p_correlation_tolerance_seconds: tolerance,
   });
+  if (error) logOperationalFailure("power_profile_create", error);
   return error ? databaseError(error.code) : success("Gerador e potência nominal cadastrados com sucesso.");
 }
 
@@ -82,5 +84,6 @@ export async function versionGeneratorPowerProfileAction(
     p_valid_from: validFrom,
     ...(expected ? { p_expected_profile_id: expected } : {}),
   });
+  if (error) logOperationalFailure("power_profile_version", error);
   return error ? databaseError(error.code) : success("Nova vigência de potência nominal registrada.");
 }

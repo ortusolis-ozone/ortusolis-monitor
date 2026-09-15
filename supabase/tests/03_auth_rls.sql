@@ -89,7 +89,7 @@ begin
     or (select count(*) from public.locations) <> 1
     or (select count(*) from public.cold_rooms) <> 1
     or (select count(*) from public.generators) <> 1
-    or (select count(*) from public.client_daily_status) <> 1 then
+    or (select count(*) from public.list_client_application_status()) <> 1 then
     raise exception 'cliente A não ficou isolado em sua hierarquia';
   end if;
 
@@ -132,7 +132,7 @@ begin
       from public.clients
       where id = '10000000-0000-0000-0000-000000000002'
     )
-    or (select count(*) from public.client_daily_status) <> 1 then
+    or (select count(*) from public.list_client_application_status()) <> 1 then
     raise exception 'cliente B não ficou isolado em sua hierarquia';
   end if;
 end

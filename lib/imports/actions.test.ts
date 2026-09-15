@@ -83,3 +83,13 @@ test("confirmation failure returns a sanitized atomicity message", async () => {
   expect(result).toEqual({ status: "error", message: "Não foi possível confirmar a atualização. Nenhum lote parcial foi mantido." });
   expect(mocks.rpc.mock.calls[1][0]).toBe("record_failed_import_session");
 });
+
+test("failure persistence and logs exclude raw database content", async () => {
+  const logger = vi.spyOn(console, "error").mockImplementation(() => {});
+  mocks.rpc.mockResolvedValueOnce({ data: null, error: { code: "23514", message: "SECRET RAW ROW", details: "PRIVATE READING" } }).mockResolvedValueOnce({ data: null, error: null });
+  await confirmImportSession(request);
+  expect(mocks.rpc.mock.calls[1][1].p_error_message).toBe("Não foi possível confirmar a sessão de importação.");
+  expect(JSON.stringify(logger.mock.calls)).not.toMatch(/SECRET|PRIVATE/);
+  expect(logger).toHaveBeenCalledWith("Falha operacional", { operation: "session_processing", code: "23514" });
+  logger.mockRestore();
+});

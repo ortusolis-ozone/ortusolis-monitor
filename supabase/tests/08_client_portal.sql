@@ -97,13 +97,13 @@ begin
     or (select count(*) from public.locations) <> 2
     or (select count(*) from public.cold_rooms) <> 2
     or (select count(*) from public.generators) <> 4
-    or (select count(*) from public.client_daily_status) <> 5 then
+    or (select count(*) from public.list_client_application_status()) <> 5 then
     raise exception 'client_admin não recebeu somente a hierarquia do próprio cliente';
   end if;
 
   if exists (
     select 1
-    from public.client_daily_status
+    from public.list_client_application_status()
     where client_id = 'a1000000-0000-4000-8000-000000000002'
   ) then
     raise exception 'alterar o cliente no filtro revelou registros de outra empresa';
@@ -111,7 +111,7 @@ begin
 
   if (
     select count(*)
-    from public.client_daily_status
+    from public.list_client_application_status()
     where status_date between '2026-08-23' and '2026-08-24'
       and location_id = 'a3000000-0000-4000-8000-000000000002'
       and cold_room_id = 'a4000000-0000-4000-8000-000000000002'
@@ -121,14 +121,14 @@ begin
   end if;
 
   if (
-    select status
-    from public.client_daily_status
+    select application_status
+    from public.list_client_application_status()
     where status_date = '2026-08-24'
-    order by case status
+    order by case application_status
       when 'verification_required' then 1
       when 'awaiting_update' then 2
       when 'no_data' then 3
-      when 'completed' then 4
+      when 'registered' then 4
       else 5
     end
     limit 1
@@ -137,8 +137,8 @@ begin
   end if;
 
   if (
-    select (max(updated_at) at time zone 'America/Fortaleza')::date
-    from public.client_daily_status
+    select max(status_date)
+    from public.list_client_application_status()
   ) <> '2026-08-24'::date then
     raise exception 'a data segura do cabeçalho não corresponde à última atualização';
   end if;
@@ -158,7 +158,7 @@ set local request.jwt.claim.sub = 'a2000000-0000-4000-8000-000000000002';
 
 do $$
 begin
-  if (select count(*) from public.client_daily_status) <> 5 then
+  if (select count(*) from public.list_client_application_status()) <> 5 then
     raise exception 'operator não recebeu a mesma consulta do client_admin';
   end if;
 end
@@ -170,7 +170,7 @@ set local request.jwt.claim.sub = 'a2000000-0000-4000-8000-000000000003';
 
 do $$
 begin
-  if (select count(*) from public.client_daily_status) <> 5 then
+  if (select count(*) from public.list_client_application_status()) <> 5 then
     raise exception 'viewer não recebeu a mesma consulta dos demais papéis do cliente';
   end if;
 end
@@ -183,10 +183,10 @@ set local request.jwt.claim.sub = 'a2000000-0000-4000-8000-000000000004';
 do $$
 begin
   if (select count(*) from public.clients) <> 1
-    or (select count(*) from public.client_daily_status) <> 1
+    or (select count(*) from public.list_client_application_status()) <> 1
     or exists (
       select 1
-      from public.client_daily_status
+      from public.list_client_application_status()
       where client_id = 'a1000000-0000-4000-8000-000000000001'
     ) then
     raise exception 'o segundo cliente acessou registros do Cliente Portal A';

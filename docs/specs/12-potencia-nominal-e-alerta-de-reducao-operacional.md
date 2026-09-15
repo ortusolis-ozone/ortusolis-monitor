@@ -1,6 +1,6 @@
 # Spec 12 — Potência nominal e alerta de redução operacional
 
-**Status:** proposta para aprovação.
+**Status:** implementada e validada localmente em 15/09/2026. Publicação remota não realizada.
 
 **Tipo:** evolução da configuração do gerador, da avaliação de telemetria e da
 apresentação sanitizada ao cliente.
@@ -39,11 +39,11 @@ Regras para a execução:
 - [x] **12.5 — Experiência administrativa do gerador** — concluída em 09/09/2026.
 - [x] **12.6 — Integração com a importação conjunta** — concluída em 14/09/2026.
 - [x] **12.7 — Diagnóstico técnico do Master** — concluída em 14/09/2026.
-- [ ] **12.8 — Contrato sanitizado do cliente** — não iniciada.
-- [ ] **12.9 — Experiência do portal e retirada do contrato antigo** — não
-  iniciada.
-- [ ] **12.10 — Auditoria final, documentação e aceite integrado** — não
-  iniciada.
+- [x] **12.8 — Contrato sanitizado do cliente** — concluída em 14/09/2026.
+- [x] **12.9 — Experiência do portal e retirada do contrato antigo** — concluída
+  em 14/09/2026.
+- [x] **12.10 — Auditoria final, documentação e aceite integrado** — concluída
+  em 15/09/2026.
 
 ### Tarefa 12.1 — Fundação dos perfis nominais
 
@@ -361,6 +361,27 @@ contrato atual, para permitir migração segura do portal.
 colunas técnicas, bloqueio de `anon`, isolamento entre dois clientes e acesso
 correto do Master e do cliente ao novo contrato.
 
+**Resultado:** a RPC `list_client_application_status` publica somente cliente,
+unidade, câmara, gerador, data, estado público da aplicação e sinal qualitativo
+de atenção. O estado diário `completed` é apresentado como `registered`; os
+demais estados públicos existentes continuam disponíveis para preservar a
+migração do portal. Duas ou mais aplicações `below_expected` do mesmo gerador
+e dia produzem uma única linha `attention`, enquanto `within_expected`,
+`not_evaluable` e `not_configured` produzem `none`.
+
+A implementação protegida valida usuário ativo e limita usuários de cliente à
+própria conta. A função exposta usa `security invoker`, `search_path` fixo e
+permissões explícitas somente para `authenticated`; `anon` não possui execução.
+O contrato anterior foi mantido sem mudança de privilégios como ponte para a
+tarefa 12.9.
+
+Validação: 116 testes de aplicação e 18 arquivos SQL aprovados. O teste novo
+cobre catálogo com exatamente sete colunas públicas, bloqueio real de `anon`,
+isolamento entre duas contas, acesso do Master, filtros, agregação sem contagem
+e os quatro estados operacionais. Reset completo do banco, typecheck, lint,
+build, lint SQL de `public` e `private` e conferência dos tipos públicos também
+foram aprovados.
+
 ### Tarefa 12.9 — Experiência do portal e retirada do contrato antigo
 
 **Objetivo:** migrar o portal para o contrato sanitizado e remover a exposição
@@ -389,6 +410,34 @@ normal de “potência confirmada”.
 normal, caso baixo, agregação diária, responsividade, acessibilidade, payload
 sanitizado e isolamento entre contas.
 
+**Entrega — 14/09/2026:** o portal consulta exclusivamente a RPC
+`list_client_application_status` para histórico, visão geral e verificações.
+Tipos e apresentação usam `registered` e `attention_status`; a evidência
+elétrica antiga foi retirada da interface. Sem redução, aparece “Aplicação
+registrada”. Com redução, o registro diário apresenta um único destaque com
+“Aplicação registrada — atenção necessária” e a orientação para verificação
+pela Ortusolis, com semântica `role="status"` e texto além da cor.
+
+A migration `20260914190956_retire_client_power_evidence_contract.sql`, aplicada
+somente no banco local, remove a política de consulta cliente da tabela antiga.
+`client_daily_status`, incluindo `power_evidence_status`, permanece interna ao
+processamento e ao diagnóstico do Master; usuários cliente não recebem linhas
+desse caminho. O novo contrato mantém isolamento por conta. Nenhum dado
+histórico é apagado pela migration. O cabeçalho passa a indicar o último dia
+publicado, pois a RPC sanitizada não expõe `updated_at` do processamento.
+
+Validação: 123 testes de aplicação, 18 arquivos SQL, typecheck e lint aprovados;
+lint SQL de `public` e `private` sem erros. Build de produção aprovado com
+Webpack e Node 24. O build padrão com Turbopack encontrou bloqueio do ambiente
+ao abrir uma porta de subprocesso, inclusive após escalonamento de permissões.
+No navegador, a versão compilada foi verificada com duas contas sintéticas no
+Supabase local: caso normal, dois resultados baixos agregados em um alerta,
+ausência de falso alerta nos demais estados, filtro com gerador de outra conta,
+HTML e payload sem campos ou identificadores técnicos. Em 1440, 768 e 390 px,
+os sete dias publicados mantiveram um único alerta e nenhum transbordamento
+horizontal. Imagens em `output/playwright/spec129/`. Dados sintéticos removidos
+ao fim da verificação. A tarefa 12.10 permanece não iniciada.
+
 ### Tarefa 12.10 — Auditoria final, documentação e aceite integrado
 
 **Objetivo:** provar que a entrega completa satisfaz a spec e preparar sua
@@ -412,19 +461,78 @@ operação segura.
 concluídas, a suíte completa estiver verde, não houver regressão das specs 02 a
 11 e a Definition of Done desta spec estiver integralmente atendida.
 
+**Entrega — 15/09/2026:** auditoria integrada concluída. O guia
+[Operação da potência nominal](../operacao/potencia-nominal.md) documenta
+cadastro e vigências, importação, diagnóstico, reprocessamento, auditoria e a
+diferença entre energização, consumo abaixo do esperado e geração de ozônio.
+
+A revisão identificou e corrigiu duas lacunas: eventos explícitos de criação,
+resolução e reativação de `power_below_expected`, e logs que recebiam objetos de
+erro completos. A migration `20260914203245_operational_power_lifecycle_audit.sql`
+registra o ciclo derivado sem copiar conteúdo de arquivo ou comentários. Os
+logs de servidor passam a guardar somente operação e SQLSTATE; registros de
+falha enviados pelas ações de importação usam mensagens fixas sanitizadas.
+
+A nova auditoria revelou que a reconstrução de estado resolvia temporariamente
+um alerta de potência antes de a avaliação canônica reativá-lo. A migration
+`20260915004544_preserve_operational_alert_during_state_reprocessing.sql`
+separa esses ciclos: somente a avaliação operacional resolve o alerta nominal,
+evita eventos artificiais na reimportação e preserva a idempotência. Os testes
+verificam transições reais, ausência de duplicidade e acesso restrito. O teste
+legado da spec 06 fixa o fuso de Fortaleza, alinhado ao calendário de publicação,
+para não depender de uma coincidência entre a data UTC e a data local.
+
+**Verificação final:** 21 migrations reaplicadas em banco local limpo; 18
+arquivos SQL e 130 testes de aplicação aprovados; lint SQL de `public` e
+`private`, typecheck e lint aprovados. Tipos públicos regenerados, sem mudança
+de contrato (normalizada somente a linha vazia adicional no fim do arquivo).
+Build de produção aprovado com Webpack e Node 24; a limitação de subprocesso do
+Turbopack registrada na 12.9 permanece específica do ambiente. O primeiro reset
+exigiu recuperação do Docker; a reaplicação final completou as 21 migrations e
+retornou um 502 transitório ao reiniciar os serviços. Os testes e a aplicação
+foram verificados depois da recuperação desses serviços.
+
+**Navegador e banco:** nova vigência de 72 W com prévia de 61,2 W e preservação
+do perfil anterior; validação de dois XLSX sintéticos, projeção, confirmação
+conjunta e repetição sem duplicar sessão/lotes. A massa integrada produziu uma
+aplicação baixa e outra não avaliável, conforme a correlação existente; igualdade
+exata em 61,2 W e os quatro estados estão cobertos pela suíte SQL. O diagnóstico
+mostrou 61,199 W contra 61,2 W. Reconhecimento com nota preservou `below_expected`,
+com um único evento de criação e um de revisão. O cliente recebeu apenas o
+alerta qualitativo, inclusive após reconhecimento. Conta B não recebeu o gerador
+da conta A quando seu identificador foi usado no filtro. HTML e resposta do
+portal foram inspecionados sem valores ou identificadores técnicos.
+
+Importação, diagnóstico e portal foram inspecionados em 1440 e 390 px, sem
+transbordamento horizontal; alerta com texto e `role="status"`. Evidências em
+`output/playwright/spec1210/`. A confirmação de importação também foi exercitada
+com aceitação programática restrita à mensagem esperada, pois o controle do
+diálogo nativo pelo CLI foi instável. Essa instrumentação não altera o código
+da aplicação. Dados e contas sintéticos removidos após a verificação.
+
+**Decisões editoriais mantidas:** “Aplicação registrada” sem detalhe elétrico;
+“Aplicação registrada — atenção necessária” com verificação atribuída à
+Ortusolis; cabeçalho “Último dia publicado”; indisponibilidade e qualidade dos
+registros continuam separadas da redução de potência. Não se infere defeito,
+ausência de ozônio ou necessidade de o cliente alterar o equipamento.
+
+O aceite é local. Nenhuma migration foi aplicada ao projeto remoto e nenhum
+deploy foi realizado. O fechamento da spec 12 não substitui a liberação de
+produção da spec 09.
+
 ### Matriz de rastreabilidade
 
-| Área da spec | Tarefas responsáveis |
-| --- | --- |
-| Perfil, cálculo de 85%, vigência e legado | 12.1, 12.4 e 12.5 |
-| Quatro estados e snapshots | 12.2 |
-| Reprocessamento e `power_below_expected` | 12.3 |
-| Cadastro, edição, listagem e pendência | 12.4 e 12.5 |
-| Prévia e confirmação conjunta | 12.6 |
-| Diagnóstico administrativo | 12.7 |
-| Segurança e contrato sanitizado | 12.8 e 12.9 |
-| Portal, atenção diária e acessibilidade | 12.9 |
-| Observabilidade, documentação e aceite final | 12.10 |
+| Área da spec | Tarefas responsáveis | Evidência de aceite |
+| --- | --- | --- |
+| Perfil, cálculo de 85%, vigência e legado | 12.1, 12.4 e 12.5 | Perfis, contratos administrativos e obrigatoriedade: testes SQL e formulários; vigência conferida no navegador. |
+| Quatro estados e snapshots | 12.2 | Teste SQL de avaliação, incluindo igualdade, fronteira de vigência, ausência de leitura/perfil e desligamento. |
+| Reprocessamento e `power_below_expected` | 12.3 | Teste SQL de reprocessamento e auditoria; revisão preserva resultado; repetição sem eventos extras. |
+| Cadastro, edição, listagem e pendência | 12.4 e 12.5 | Contratos, validação decimal, componentes e histórico administrativo. |
+| Prévia e confirmação conjunta | 12.6 | Teste SQL nominal da importação, ações, componentes e dois XLSX no navegador. |
+| Diagnóstico administrativo | 12.7 | SQL e componentes de diagnóstico; origem, snapshots e nota conferidos no navegador. |
+| Segurança e contrato sanitizado | 12.8 e 12.9 | Catálogo, RLS, anon, duas contas, queries e inspeção de HTML/payload. |
+| Portal, atenção diária e acessibilidade | 12.9 | Testes de página, agregação SQL e navegador em desktop/smartphone. |
+| Observabilidade, documentação e aceite final | 12.10 | Guia operacional, eventos de ciclo, logs sanitizados, reset, suíte completa, tipos, lint e build. |
 
 ## Regra de precedência
 

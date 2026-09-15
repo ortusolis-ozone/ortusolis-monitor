@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { logOperationalFailure } from "@/lib/operations/log-failure";
 import { requireMaster } from "@/lib/auth/profile";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
@@ -346,7 +347,7 @@ export async function previewXlsxImport(
       return errorResult(error.message);
     }
 
-    console.error("Falha ao gerar prévia XLSX", error);
+    logOperationalFailure("import_preview", error);
     return errorResult("Não foi possível validar o arquivo. Tente novamente.");
   }
 }
@@ -394,8 +395,8 @@ export async function confirmXlsxImport(
           });
 
     if (error || !data || !isConfirmation(data)) {
-      const administrativeMessage =
-        error?.message ?? "Resposta inválida ao confirmar a importação.";
+      logOperationalFailure("import_confirmation", error);
+      const administrativeMessage = "Não foi possível confirmar a importação.";
       const failedResult = await supabase.rpc(
         parsed.dataKind === "state_events"
           ? "record_failed_xlsx_import"
@@ -404,7 +405,7 @@ export async function confirmXlsxImport(
       );
 
       if (failedResult.error) {
-        console.error("Falha ao registrar importação malsucedida", failedResult.error);
+        logOperationalFailure("import_failure_record", failedResult.error);
       }
       throw new Error(administrativeMessage);
     }
@@ -418,7 +419,7 @@ export async function confirmXlsxImport(
       return errorResult(error.message);
     }
 
-    console.error("Falha ao confirmar importação XLSX", error);
+    logOperationalFailure("import_confirmation", error);
     return errorResult(
       "Não foi possível confirmar a importação. Nenhum lote parcial foi mantido.",
     );
@@ -530,6 +531,7 @@ async function processImportSession(
           p_coverage_warning_acknowledged: request.coverageWarningAcknowledged,
         });
 
+    if (error) logOperationalFailure("session_processing", error);
     if (error?.code === "P1206") {
       return errorResult(NOMINAL_PROFILE_REQUIRED_MESSAGE);
     }
@@ -541,8 +543,7 @@ async function processImportSession(
     }
 
     if (error || !data || !isSessionConfirmation(data)) {
-      const administrativeMessage =
-        error?.message ?? "Resposta inválida ao confirmar a sessão.";
+      const administrativeMessage = "Não foi possível confirmar a sessão de importação.";
       const failedResult = await stateLoaded.supabase.rpc(
         "record_failed_import_session",
         {
@@ -565,8 +566,8 @@ async function processImportSession(
       );
 
       if (failedResult.error) {
-        console.error(
-          "Falha ao registrar sessão malsucedida",
+        logOperationalFailure(
+          "session_failure_record",
           failedResult.error,
         );
       }
@@ -596,7 +597,7 @@ async function processImportSession(
       return errorResult(error.message);
     }
 
-    console.error("Falha ao confirmar sessão de importação", error);
+    logOperationalFailure("session_processing", error);
     return errorResult(
       "Não foi possível confirmar a atualização. Nenhum lote parcial foi mantido.",
     );

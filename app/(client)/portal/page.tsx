@@ -4,7 +4,6 @@ import { AppHeader } from "@/components/app-header";
 import { PublicStatusBadge } from "@/components/public-status-badge";
 import { requireClientProfile } from "@/lib/auth/profile";
 import {
-  powerEvidenceDetails,
   portalStatuses,
   portalStatusDetails,
 } from "@/lib/portal/constants";
@@ -96,13 +95,16 @@ function EmptyPublicStatus() {
   return <span className="public-status-empty">Sem registros publicados</span>;
 }
 
-function PowerEvidence({ status }: { status: PortalHistoryItem["powerEvidenceStatus"] }) {
-  return (
-    <span className={`power-evidence ${status}`}>
-      <strong>{powerEvidenceDetails[status].label}</strong>
-      <small>{powerEvidenceDetails[status].description}</small>
-    </span>
-  );
+function ApplicationStatus({ status, attentionStatus }: Pick<PortalHistoryItem, "status" | "attentionStatus">) {
+  if (attentionStatus === "attention") {
+    return (
+      <span className="portal-attention" role="status">
+        <strong>Aplicação registrada — atenção necessária</strong>
+        <small>O consumo elétrico registrado ficou abaixo do esperado. A Ortusolis deve verificar o equipamento.</small>
+      </span>
+    );
+  }
+  return <PublicStatusBadge compact status={status} />;
 }
 
 function StatusLegend() {
@@ -202,8 +204,7 @@ function GeneratorRow({
         <strong>{generator.identifier}</strong>
       </div>
       <div className="portal-node-actions">
-        <PowerEvidence status={generator.powerEvidenceStatus} />
-        <PublicStatusBadge compact status={generator.status} />
+        <ApplicationStatus status={generator.status} attentionStatus={generator.attentionStatus} />
         <Link
           href={historyHref(filters, {
             locationId,
@@ -228,7 +229,7 @@ function LocationOverview({
   return (
     <details
       className="portal-location"
-      open={location.status === "verification_required"}
+      open={location.status === "verification_required" || location.coldRooms.some((room) => room.generators.some((generator) => generator.attentionStatus === "attention"))}
     >
       <summary>
         <div>
@@ -252,7 +253,7 @@ function LocationOverview({
           <details
             className="portal-room"
             key={room.id}
-            open={room.status === "verification_required"}
+            open={room.status === "verification_required" || room.generators.some((generator) => generator.attentionStatus === "attention")}
           >
             <summary>
               <div>
@@ -397,7 +398,6 @@ function HistoryTable({ history }: { history: PortalHistoryItem[] }) {
             <th>Câmara</th>
             <th>Gerador</th>
             <th>Estado</th>
-            <th>Evidência de potência</th>
           </tr>
         </thead>
         <tbody>
@@ -408,13 +408,7 @@ function HistoryTable({ history }: { history: PortalHistoryItem[] }) {
               <td data-label="Câmara">{item.coldRoomName}</td>
               <td data-label="Gerador">{item.generatorIdentifier}</td>
               <td data-label="Estado">
-                <PublicStatusBadge compact status={item.status} />
-                <span className="portal-history-description">
-                  {portalStatusDetails[item.status].description}
-                </span>
-              </td>
-              <td data-label="Evidência de potência">
-                <PowerEvidence status={item.powerEvidenceStatus} />
+                <ApplicationStatus status={item.status} attentionStatus={item.attentionStatus} />
               </td>
             </tr>
           ))}
@@ -491,10 +485,10 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
             </p>
           </div>
           <div className="portal-update-card">
-            <span>Última atualização disponível</span>
+            <span>Último dia publicado</span>
             <strong>
               {data.updatedThrough
-                ? `Registros atualizados até ${formatPortalDate(data.updatedThrough)}`
+                ? `Registros publicados até ${formatPortalDate(data.updatedThrough)}`
                 : "Registros ainda não atualizados"}
             </strong>
           </div>
@@ -572,11 +566,6 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
           </div>
 
           <HistoryFilters filters={data.filters} options={data.options} />
-
-          <p className="portal-section-description">
-            A potência registrada é uma evidência indireta de energização do
-            gerador e não mede a concentração ou a produção de ozônio.
-          </p>
 
           {data.filters.dateRangeWasAdjusted ? (
             <p className="portal-filter-notice" role="status">

@@ -29,7 +29,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 9 | [Qualidade e entrega](./09-qualidade-e-entrega.md) | Testes, segurança e critérios para publicação | Pendente de conclusão | Pendente de implementação |
 | 10 | [Duplo controlador e telemetria de potência](./10-duplo-controlador-e-telemetria-de-potencia.md) | Dois sinais por gerador, importação de potência e evidência sanitizada | Não se aplica | Concluída |
 | 11 | [Importação conjunta de estado e potência](./11-importacao-conjunta-de-estado-e-potencia.md) | Dois campos visíveis, confirmação conjunta e histórico agrupado | Não se aplica | Concluída |
-| 12 | [Potência nominal e alerta de redução operacional](./12-potencia-nominal-e-alerta-de-reducao-operacional.md) | Mínimo automático de 85%, diagnóstico técnico e alerta qualitativo | Não se aplica | Proposta para aprovação |
+| 12 | [Potência nominal e alerta de redução operacional](./12-potencia-nominal-e-alerta-de-reducao-operacional.md) | Mínimo automático de 85%, diagnóstico técnico e alerta qualitativo | Não se aplica | Concluída; validada localmente |
 
 ## Marcos
 
@@ -39,7 +39,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 4. **Liberação do MVP:** spec 9.
 5. **Evolução de telemetria:** spec 10 concluída.
 6. **Operação conjunta das duas fontes:** spec 11 concluída.
-7. **Avaliação da potência operacional:** spec 12 proposta para aprovação.
+7. **Avaliação da potência operacional:** spec 12 concluída e validada localmente em 15/09/2026.
 
 Cada spec deve ser detalhada imediatamente antes de sua implementação. Uma etapa só avança quando os critérios de aceite da anterior estiverem atendidos.
 
