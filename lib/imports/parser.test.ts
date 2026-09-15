@@ -81,6 +81,8 @@ describe("reference power workbook", () => {
         await readFile(referenceWorkbook),
         powerContext,
         [],
+        "power_readings",
+        "America/Fortaleza",
       );
 
       expect(parsed.dataKind).toBe("power_readings");
@@ -125,6 +127,8 @@ describe("reference power workbook", () => {
             externalDeviceIdNormalized: "outro-device",
           },
           [],
+          "power_readings",
+          "America/Fortaleza",
         ),
       ).rejects.toThrow(/Device ID/);
     },

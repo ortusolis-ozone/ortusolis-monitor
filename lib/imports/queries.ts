@@ -197,7 +197,7 @@ export async function getImportPageData(): Promise<{
       ? await supabase
           .from("import_batches")
           .select(
-            "id, file_name, controller_id, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows",
+            "id, file_name, source_timezone, normalization_version, controller_id, period_start, period_end, total_rows, inserted_rows, duplicate_rows, unknown_source_rows",
           )
           .in("id", recentSessionBatchIds)
       : { data: [], error: null };
@@ -301,6 +301,8 @@ export async function getImportPageData(): Promise<{
 
     return {
       id: batch.id,
+      sourceTimezone: batch.source_timezone,
+      normalizationVersion: batch.normalization_version,
       fileName: batch.file_name,
       controllerName:
         controllerNames.get(batch.controller_id) ?? "Controlador indisponível",

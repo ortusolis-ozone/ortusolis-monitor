@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import readXlsxFile, { type CellValue } from "read-excel-file/node";
 
 import { IMPORT_PREVIEW_ROWS, MAX_IMPORT_ROWS } from "./constants";
+import { isPowerTimezone, TIME_NORMALIZATION_VERSION } from "./timezone";
 import type {
   ImportDataKind,
   ParsedImportEvent,
@@ -219,7 +220,10 @@ function zonedDateTimeToIso(parts: DateParts, timeZone: string) {
     candidate += wallTimestamp - representedAsUtc;
   }
 
-  return sameDateParts(partsAtInstant(candidate, timeZone), parts)
+  // Reject ambiguous wall clocks instead of silently choosing a DST occurrence.
+  const ambiguous = [-3600000, 3600000].some(offset =>
+    sameDateParts(partsAtInstant(candidate + offset, timeZone), parts));
+  return !ambiguous && sameDateParts(partsAtInstant(candidate, timeZone), parts)
     ? new Date(candidate).toISOString()
     : null;
 }
@@ -282,6 +286,8 @@ function fingerprintForPower(
     context.controllerId,
     context.generatorId,
     reading.occurred_at,
+    reading.source_timezone,
+    String(reading.normalization_version),
     reading.power_w.toFixed(3),
     reading.device_id_normalized,
     normalizeHeader(reading.event_type),
@@ -361,6 +367,7 @@ export async function parseImportWorkbook(
   context: ValidatedImportContext,
   sourceMappings: SourceMapping[],
   expectedDataKind?: ImportDataKind,
+  sourceTimezone?: string,
 ) {
   let sheets;
 
@@ -513,6 +520,9 @@ export async function parseImportWorkbook(
   }
 
   const indexes = selected.indexes;
+  if (!isPowerTimezone(sourceTimezone)) {
+    throw new ImportValidationError("Selecione o fuso horário do arquivo de potência: UTC ou America/Fortaleza.");
+  }
   const eventTimeIndex = indexes.get("event time")!;
   const deviceNameIndex = indexes.get("device name")!;
   const deviceIdIndex = indexes.get("device id")!;
@@ -538,7 +548,7 @@ export async function parseImportWorkbook(
     const occurredAtRaw = rawCellValue(row[eventTimeIndex] ?? null);
     const dateParts = datePartsFromCell(row[eventTimeIndex] ?? null);
     const occurredAt = dateParts
-      ? zonedDateTimeToIso(dateParts, context.timeZone)
+      ? zonedDateTimeToIso(dateParts, sourceTimezone)
       : null;
     const deviceName = rawCellValue(row[deviceNameIndex] ?? null).trim();
     const deviceId = rawCellValue(row[deviceIdIndex] ?? null).trim();
@@ -596,6 +606,8 @@ export async function parseImportWorkbook(
           ? ("off" as const)
           : ("hysteresis" as const);
     const readingWithoutFingerprint = {
+      source_timezone: sourceTimezone,
+      normalization_version: TIME_NORMALIZATION_VERSION,
       occurred_at: occurredAt,
       occurred_at_raw: occurredAtRaw,
       power_w: parsedPower.power,
@@ -625,6 +637,9 @@ export async function parseImportWorkbook(
 
   return {
     dataKind: "power_readings" as const,
+    sourceTimezone,
+    rawPeriodStart: readings.reduce((a, b) => a.occurred_at < b.occurred_at ? a : b).occurred_at_raw,
+    rawPeriodEnd: readings.reduce((a, b) => a.occurred_at > b.occurred_at ? a : b).occurred_at_raw,
     fileSha256: createHash("sha256").update(buffer).digest("hex"),
     sheetName: selected.sheet.sheet,
     readings,

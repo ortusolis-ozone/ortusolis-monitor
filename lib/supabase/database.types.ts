@@ -559,8 +559,10 @@ export type Database = {
           id: string
           inserted_rows: number
           location_id: string
+          normalization_version: number
           period_end: string | null
           period_start: string | null
+          source_timezone: string
           status: string
           total_rows: number
           unknown_source_rows: number
@@ -581,8 +583,10 @@ export type Database = {
           id?: string
           inserted_rows?: number
           location_id: string
+          normalization_version?: number
           period_end?: string | null
           period_start?: string | null
+          source_timezone?: string
           status?: string
           total_rows?: number
           unknown_source_rows?: number
@@ -603,8 +607,10 @@ export type Database = {
           id?: string
           inserted_rows?: number
           location_id?: string
+          normalization_version?: number
           period_end?: string | null
           period_start?: string | null
+          source_timezone?: string
           status?: string
           total_rows?: number
           unknown_source_rows?: number

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { POWER_TIMEZONES } from "@/lib/imports/timezone";
 import { useRouter } from "next/navigation";
 
 import {
@@ -259,6 +260,8 @@ function PowerPreview({ preview }: { preview: ImportPreview }) {
 
   return (
     <div className="source-preview" aria-label="Prévia do arquivo de potência">
+      <p>Fuso do arquivo: {preview.sourceTimezone}. Horários exibidos em {preview.timeZone}.</p>
+      <p>Período original: {preview.rawPeriodStart} — {preview.rawPeriodEnd}.</p>
       <dl className="source-preview-summary">
         <div>
           <dt>Linhas válidas</dt>
@@ -342,6 +345,7 @@ export function ImportWorkflow({
   const [selection, setSelection] = useState<Selection>(emptySelection);
   const [stateSlot, setStateSlot] = useState<SourceSlot>(emptySourceSlot);
   const [powerSlot, setPowerSlot] = useState<SourceSlot>(emptySourceSlot);
+  const [powerTimezone, setPowerTimezone] = useState("");
   const [coverageAcknowledged, setCoverageAcknowledged] = useState(false);
   const [operationalPreview, setOperationalPreview] = useState<ImportOperationalSummary | null>(null);
   const [projecting, setProjecting] = useState(false);
@@ -569,6 +573,11 @@ export function ImportWorkflow({
       return;
     }
 
+    if (source === "power" && !powerTimezone) {
+      setPowerSlot(current => ({ ...current, error: "Selecione o fuso horário do arquivo de potência." }));
+      return;
+    }
+
     setSlot((current) => ({
       ...current,
       validating: true,
@@ -586,6 +595,7 @@ export function ImportWorkflow({
         fileName: slot.file.name,
         context: importContext(slot.controllerId),
         expectedDataKind,
+        ...(source === "power" ? { sourceTimezone: powerTimezone } : {}),
       });
 
       if (response.status !== "preview") {
@@ -683,6 +693,8 @@ export function ImportWorkflow({
           context: importContext(powerSlot.controllerId),
           expectedFileSha256: powerPreview.fileSha256,
           expectedDataKind: "power_readings",
+          sourceTimezone: powerTimezone,
+          expectedSourceTimezone: powerPreview.sourceTimezone,
         },
         coverageWarningAcknowledged: coverageAcknowledged,
       });
@@ -978,6 +990,19 @@ export function ImportWorkflow({
                   source={latestPowerSource}
                   timeZone={selectedTimeZone}
                 />
+                <label>
+                  Fuso horário do arquivo de potência
+                  <select value={powerTimezone} disabled={anyBusy} required onChange={(event) => {
+                    setPowerTimezone(event.target.value);
+                    setPowerSlot(current => invalidateSlot(current));
+                    invalidateSession();
+                  }}>
+                    <option value="">Selecione o fuso do XLSX</option>
+                    {POWER_TIMEZONES.map(zone => <option key={zone} value={zone}>{zone}</option>)}
+                  </select>
+                </label>
+                <p className="field-hint">Escolha UTC quando 23:00 no arquivo corresponder a 20:00 em Fortaleza. A prévia preserva o horário original e mostra o horário convertido.</p>
+                <p className="field-hint">Ao reimportar com outro fuso, as leituras correspondentes passam a usar o horário corrigido. O registro anterior fica preservado para auditoria.</p>
 
                 <label className="file-picker">
                   <span>Selecionar XLSX de potência</span>

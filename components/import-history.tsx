@@ -61,6 +61,7 @@ function SessionBatchDetails({
         {title}: {batch.fileName}
       </summary>
       <p>{batch.controllerName}</p>
+      {batch.sourceTimezone ? <p>Fuso do arquivo: {batch.sourceTimezone}{batch.normalizationVersion === 0 ? " · interpretação anterior do sistema" : " · fuso informado na importação"}.</p> : null}
       <p>
         {formatDateTime(batch.periodStart)} — {formatDateTime(batch.periodEnd)}
       </p>

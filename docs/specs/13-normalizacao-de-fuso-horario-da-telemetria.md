@@ -1,6 +1,6 @@
 # Spec 13 — Normalização do fuso horário da telemetria
 
-**Status:** proposta.
+**Status:** concluída e validada localmente em 15/09/2026. Publicação remota pendente.
 
 **Tipo:** evolução da importação conjunta de estado e potência.
 
@@ -8,7 +8,7 @@
 
 ## Problema
 
-Os arquivos de telemetria de potência são exportados em UTC, enquanto os horários das aplicações e dos eventos de liga/desliga são interpretados no contexto de `America/Fortaleza`. A diferença observada é de três horas. Sem normalização, leituras que representam o mesmo instante não são correlacionadas corretamente.
+Foi observada uma diferença de três horas entre as fontes. Quando o horário do arquivo de potência está três horas à frente do mesmo evento em Fortaleza, a interpretação UTC representa o instante esperado. A diferença isolada não identifica automaticamente o fuso: o Master deve conferir o sentido do deslocamento e selecionar a origem. Sem normalização, leituras que representam o mesmo instante não são correlacionadas corretamente.
 
 O nome do arquivo não define o fuso. O fuso pertence aos valores da coluna `Event Time`.
 
@@ -29,7 +29,7 @@ O campo será obrigatório para uma nova validação de potência e terá inicia
 - `UTC` — para os arquivos atuais do controlador;
 - `America/Fortaleza` — para arquivos já exportados no horário local.
 
-O valor selecionado deve ser armazenado na sessão/lote de importação. Não haverá inferência automática baseada na diferença observada.
+O valor selecionado é armazenado no lote de potência, referenciado pela sessão e exibido em seu histórico. O seletor começa vazio: não há inferência automática baseada na diferença observada.
 
 ## Conversão e preservação
 
@@ -47,7 +47,11 @@ Horários sem fuso nunca podem ser tratados como UTC por padrão silencioso. Dat
 
 O lote de potência deve registrar `source_timezone` e uma versão da regra de normalização. O fingerprint e a chave de idempotência devem incluir o fuso selecionado, pois o mesmo texto bruto pode representar instantes diferentes em fusos distintos.
 
-Lotes já confirmados não serão reescritos. Arquivos antigos devem ser reimportados com `UTC` para gerar leituras corrigidas; a confirmação deve continuar transacional e idempotente.
+Lotes já confirmados não serão reescritos. A migration preenche somente os novos metadados dos lotes antigos com o fuso da unidade e versão `0`, identificando a interpretação anterior. Novos lotes com escolha explícita usam versão `1`.
+
+Arquivos antigos devem ser reimportados com o fuso correto. A chave de lote inclui `source_timezone`; o fingerprint das novas leituras inclui o fuso e a versão. Uma repetição de lote legado no mesmo fuso continua reutilizando o lote existente.
+
+A correção registra vínculos em `private.power_reading_replacements`. Leituras do mesmo controlador e gerador, com horário bruto, potência, Device ID e tipo/nome de evento correspondentes, são substituídas na correlação por sua nova interpretação. As linhas originais e as sessões antigas permanecem preservadas. Isso também cobre arquivos parcialmente sobrepostos. Repetir uma interpretação já substituída é bloqueado com orientação para usar o fuso da correção; desfazer uma correção histórica exige um fluxo futuro próprio.
 
 ## Experiência administrativa
 
@@ -65,7 +69,9 @@ Se o período convertido não intersectar o período de estado, a sessão deve c
 
 ## Reprocessamento
 
-Uma importação corrigida deve reprocessar apenas o intervalo afetado do gerador, preservando aplicações e leituras não relacionadas. A avaliação deve ser recalculável a partir dos timestamps normalizados e não pode duplicar inconsistências ou eventos de auditoria em uma repetição idêntica.
+Uma importação corrigida reavalia o gerador selecionado usando somente as leituras efetivas. A cobertura temporal também é recalculada com essas leituras, impedindo que lotes substituídos ofereçam cobertura artificial. Os vínculos de substituição, novos lotes, sessões, resultados derivados e auditoria pertencem à mesma transação; a prévia executa o mesmo caminho e desfaz suas gravações.
+
+**Decisão de implementação:** a correlação canônica consulta a sequência completa do gerador para preservar continuidade de estado, histerese e disputa por leituras nas bordas. A gravação das verificações e avaliações usa comparação de diferenças, preservando resultados não alterados. Não há um recorte rígido da consulta pelo intervalo do arquivo, pois ele poderia excluir a transição anterior necessária à correlação. Outros geradores não são reprocessados.
 
 ## Segurança e auditoria
 
@@ -76,17 +82,17 @@ Uma importação corrigida deve reprocessar apenas o intervalo afetado do gerado
 
 ## Critérios de aceite
 
-- [ ] Um arquivo UTC com evento `23:00` é persistido como o instante equivalente a `20:00` em Fortaleza.
-- [ ] Um arquivo em `America/Fortaleza` não sofre deslocamento adicional.
-- [ ] `occurred_at_raw` permanece inalterado e o lote registra o fuso escolhido.
-- [ ] A prévia e a correlação usam os timestamps normalizados.
-- [ ] A troca do fuso invalida a prévia anterior.
-- [ ] O mesmo arquivo confirmado com o mesmo fuso é idempotente.
-- [ ] O mesmo arquivo com fuso diferente não é tratado como o mesmo lote.
-- [ ] A reimportação corrige aplicações afetadas sem duplicar auditoria.
-- [ ] RLS continua isolando dados técnicos do cliente.
-- [ ] Testes cobrem UTC, Fortaleza, erro de data, cobertura, fronteira e reprocessamento.
-- [ ] A validação visual confirma a indicação do fuso em desktop e smartphone.
+- [x] Um arquivo UTC com evento `23:00` é persistido como o instante equivalente a `20:00` em Fortaleza.
+- [x] Um arquivo em `America/Fortaleza` não sofre deslocamento adicional.
+- [x] `occurred_at_raw` permanece inalterado e o lote registra o fuso escolhido.
+- [x] A prévia e a correlação usam os timestamps normalizados.
+- [x] A troca do fuso invalida a prévia anterior.
+- [x] O mesmo arquivo confirmado com o mesmo fuso é idempotente.
+- [x] O mesmo arquivo com fuso diferente não é tratado como o mesmo lote.
+- [x] A reimportação corrige aplicações afetadas sem duplicar auditoria.
+- [x] RLS continua isolando dados técnicos do cliente.
+- [x] Testes cobrem UTC, Fortaleza, erro de data, cobertura, fronteira e reprocessamento.
+- [x] A validação visual confirma a indicação do fuso em desktop e smartphone.
 
 ## Plano de rollout
 
@@ -95,4 +101,25 @@ Uma importação corrigida deve reprocessar apenas o intervalo afetado do gerado
 3. manter compatibilidade de leitura dos lotes existentes;
 4. reimportar os arquivos UTC afetados, selecionando `UTC`;
 5. comparar uma aplicação conhecida com os eventos de liga/desliga;
-6. somente depois remover qualquer tratamento temporário específico do arquivo.
+6. verificar o histórico com o fuso registrado e os resultados operacionais recalculados.
+
+## Entrega
+
+- Migration: `20260915173810_telemetry_source_timezone.sql`.
+- Parser: escolha explícita da origem, precisão de milissegundos, recusa de datas inválidas e de horas históricas ambíguas/inexistentes.
+- Servidor: revalidação do arquivo e da escolha do fuso na prévia e confirmação; bloqueio quando o fuso diverge da prévia.
+- Interface: seletor no bloco de potência, períodos original e convertido, invalidação da prévia de potência e da projeção conjunta, histórico com fuso e indicação de interpretação legada.
+- Banco: metadados, idempotência por fuso, substituição auditável de leituras e processamento de fontes efetivas; funções privilegiadas e vínculos técnicos restritos ao schema privado.
+- Validação visual local em 1440 e 390 px: arquivo UTC `10:00–12:30` exibido em Fortaleza como `07:00–09:30`, uma aplicação `within_expected`, uma `below_expected`, confirmação persistida e histórico com UTC. Trocar o fuso preservou a prévia de estado e bloqueou a confirmação até revalidar potência. Sem overflow horizontal da página.
+- Evidências locais: `output/playwright/spec13/preview-1440.png` e `preview-390.png`.
+
+A implementação não publica automaticamente a aplicação nem aplica esta migration ao banco remoto. A correção de arquivos reais acontece após a publicação e a reimportação explícita pelo Master.
+
+## Validação concluída
+
+- 143 testes da aplicação em 15 arquivos aprovados; teste de actions repetido após refinamento da cobertura de fuso ausente/inválido.
+- Typecheck, ESLint e build de produção com Node 24 e Webpack aprovados.
+- As 22 migrations foram aplicadas do zero com `supabase db reset --local --no-seed --yes`; a nova migration consta no histórico local.
+- 19 arquivos SQL aprovados, incluindo correção após importação legada, deduplicação de arquivo sobreposto, bloqueio de interpretação obsoleta, falha tardia com rollback, privacidade e autorização. Antes do reset, os 18 existentes e o novo teste passaram pelo CLI; após o reset, o executor Docker ficou parado e a suíte completa foi executada diretamente com `psql`, `ON_ERROR_STOP`, verificação das saídas TAP e rollback por arquivo.
+- `supabase db lint --local --schema public,private` sem erros e tipos públicos atualizados.
+- Dados sintéticos da validação visual removidos pela recriação local; nenhuma alteração remota foi executada nesta entrega.

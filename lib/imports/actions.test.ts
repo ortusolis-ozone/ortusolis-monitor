@@ -15,7 +15,7 @@ const context = { clientId: id, locationId: id, coldRoomId: id, generatorId: id 
 const request: ImportSessionConfirmationRequest = {
   context, coverageWarningAcknowledged: true,
   state: { context: { ...context, controllerId: id }, objectPath: `${id}/${id}.xlsx`, fileName: "state.xlsx", expectedFileSha256: "a".repeat(64) },
-  power: { context: { ...context, controllerId: id }, objectPath: `${id}/f5000000-0000-4000-8000-000000000002.xlsx`, fileName: "power.xlsx", expectedFileSha256: "b".repeat(64) },
+  power: { context: { ...context, controllerId: id }, objectPath: `${id}/f5000000-0000-4000-8000-000000000002.xlsx`, fileName: "power.xlsx", expectedFileSha256: "b".repeat(64), sourceTimezone: "UTC", expectedSourceTimezone: "UTC" },
 };
 const summary = { within_expected: 1, below_expected: 1, not_evaluable: 1, not_configured: 0, groups: [], profiles: [] };
 beforeEach(() => {
@@ -27,7 +27,8 @@ beforeEach(() => {
     storage: { from: () => ({ download: async () => ({ data: new Blob(["xlsx"]), error: null }), remove: mocks.remove }) },
     from: () => ({ select: () => ({ eq: async () => ({ data: [], error: null }) }) }),
   });
-  mocks.parse.mockImplementation(async (_buffer, _context, _mappings, kind) => ({
+  mocks.parse.mockImplementation(async (_buffer, _context, _mappings, kind, sourceTimezone) => ({
+    sourceTimezone,
     dataKind: kind, fileSha256: (kind === "state_events" ? "a" : "b").repeat(64),
     periodStart: "2026-08-01T00:00:00Z", periodEnd: "2026-08-02T00:00:00Z",
     events: [{ occurred_at: "2026-08-01T00:00:00Z", operation: "turn_on" }],
@@ -57,6 +58,17 @@ test("authorization occurs before upload access", async () => {
   mocks.requireMaster.mockRejectedValue(new Error("forbidden"));
   await expect(previewImportSession(request)).rejects.toThrow("forbidden");
   expect(mocks.createClient).not.toHaveBeenCalled();
+});
+test("changed source timezone requires a new preview before confirming", async () => {
+  const changed = { ...request, power: { ...request.power, sourceTimezone: "America/Fortaleza" } };
+  expect((await confirmImportSession(changed)).status).toBe("error");
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
+test.each([undefined, "Europe/Paris"])("rejects missing or invalid timezone before download: %s", async sourceTimezone => {
+  mocks.context.mockResolvedValueOnce({ timeZone: "America/Fortaleza", controllerRole: "state" })
+    .mockResolvedValueOnce({ timeZone: "America/Fortaleza", controllerRole: "power_telemetry" });
+  expect((await previewImportSession({ ...request, power: { ...request.power, sourceTimezone } })).status).toBe("error");
+  expect(mocks.rpc).not.toHaveBeenCalled();
 });
 test("mismatched hierarchy is rejected before parsing", async () => {
   expect((await previewImportSession({ ...request, context: { ...context, generatorId: "other" } })).status).toBe("error");

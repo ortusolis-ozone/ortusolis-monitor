@@ -12,6 +12,7 @@ export type ImportContext = ImportHierarchyContext & {
 export type ImportDataKind = "state_events" | "power_readings";
 
 export type ImportUploadRequest = {
+  sourceTimezone?: string;
   objectPath: string;
   fileName: string;
   context: ImportContext;
@@ -20,6 +21,7 @@ export type ImportUploadRequest = {
 
 export type ImportConfirmationRequest = ImportUploadRequest & {
   expectedFileSha256: string;
+  expectedSourceTimezone?: string;
 };
 
 export type ImportClientOption = {
@@ -110,6 +112,9 @@ export type StateImportPreview = ImportPreviewBase & {
 };
 
 export type PowerImportPreview = ImportPreviewBase & {
+  sourceTimezone: string;
+  rawPeriodStart: string;
+  rawPeriodEnd: string;
   dataKind: "power_readings";
   deviceName: string;
   deviceId: string;
@@ -208,6 +213,8 @@ export type LatestImportSource = {
 };
 
 export type ImportSessionBatchSummary = {
+  sourceTimezone: string;
+  normalizationVersion: number;
   id: string;
   fileName: string;
   controllerName: string;
@@ -281,6 +288,8 @@ export type ParsedImportEvent = {
 };
 
 export type ParsedPowerReading = {
+  source_timezone: string;
+  normalization_version: number;
   rowNumber: number;
   occurred_at: string;
   occurred_at_raw: string;

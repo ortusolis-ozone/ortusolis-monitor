@@ -18,7 +18,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(window, "confirm").mockReturnValue(true);
   mocks.preview.mockResolvedValue({ status: "preview", preview: summary });
-  mocks.filePreview.mockImplementation(async ({ expectedDataKind }) => ({ status: "preview", preview: {
+  mocks.filePreview.mockImplementation(async ({ expectedDataKind, sourceTimezone }) => ({ status: "preview", preview: {
+    sourceTimezone,
     dataKind: expectedDataKind, fileName: "test.xlsx", fileSha256: "a".repeat(64), timeZone: "America/Fortaleza", totalRows: 2, existingDuplicateRows: 0, repeatedFileRows: 0, unknownSourceRows: 0, periodStart: "2026-08-01T00:00:00Z", periodEnd: "2026-08-03T00:00:00Z", alreadyImported: false, sample: [], minPowerW: 0, maxPowerW: 70, onRows: 1, offRows: 1, hysteresisRows: 0,
   } }));
 });
@@ -33,12 +34,26 @@ async function ready() {
     fireEvent.change(screen.getByRole("combobox", { name: label }), { target: { value } });
   }
   for (const source of ["estado", "potência"]) {
+    if (source === "potência") fireEvent.change(screen.getByRole("combobox", { name: "Fuso horário do arquivo de potência" }), { target: { value: "UTC" } });
     fireEvent.change(screen.getByLabelText(`Selecionar XLSX de ${source === "estado" ? "horários" : source}`, { exact: false }), { target: { files: [new File(["xlsx"], "test.xlsx")] } });
     fireEvent.click(screen.getByRole("button", { name: `Validar arquivo de ${source}` }));
     await waitFor(() => expect(screen.getByRole("button", { name: `Validar arquivo de ${source}` }).hasAttribute("disabled")).toBe(false));
   }
 }
 function confirmation() { return screen.getByRole("button", { name: /Confirmar atualização/ }); }
+test("changing timezone preserves state preview and file but invalidates power and joint projection", async () => {
+  await ready();
+  expect(mocks.filePreview.mock.calls[1][0].sourceTimezone).toBe("UTC");
+  fireEvent.click(screen.getByRole("button", { name: "Projetar avaliação operacional" }));
+  await waitFor(() => expect(confirmation().hasAttribute("disabled")).toBe(false));
+  fireEvent.change(screen.getByRole("combobox", { name: "Fuso horário do arquivo de potência" }), {target:{value:"America/Fortaleza"}});
+  expect(screen.getByLabelText("Prévia do arquivo de estado")).toBeTruthy();
+  expect(screen.queryByLabelText("Prévia do arquivo de potência")).toBeNull();
+  expect(confirmation().hasAttribute("disabled")).toBe(true);
+  fireEvent.click(screen.getByRole("button", {name:"Validar arquivo de potência"}));
+  await waitFor(() => expect(mocks.filePreview).toHaveBeenCalledTimes(3));
+  expect(mocks.filePreview.mock.calls[2][0].sourceTimezone).toBe("America/Fortaleza");
+});
 test("blocks confirmation before projection and guides missing nominal configuration", async () => {
   mocks.preview.mockResolvedValue({ status: "error", message: NOMINAL_PROFILE_REQUIRED_MESSAGE });
   await ready();

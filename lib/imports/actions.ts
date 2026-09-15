@@ -12,6 +12,7 @@ import { validateImportContext } from "./context";
 import { ImportValidationError, parseImportWorkbook } from "./parser";
 import { isOperationalSummary, NOMINAL_PROFILE_REQUIRED_MESSAGE } from "./operational-summary";
 import { compareImportPeriods } from "./session";
+import { isPowerTimezone } from "./timezone";
 import type {
   ImportActionResult,
   ImportOperationalSummary,
@@ -68,6 +69,8 @@ function persistedEvent(event: ParsedImportEvent): Json {
 
 function persistedPowerReading(reading: ParsedPowerReading): Json {
   return {
+    source_timezone: reading.source_timezone,
+    normalization_version: reading.normalization_version,
     occurred_at: reading.occurred_at,
     occurred_at_raw: reading.occurred_at_raw,
     power_w: reading.power_w,
@@ -183,6 +186,9 @@ async function loadValidatedUpload(
 
   try {
     const context = await validateImportContext(supabase, request.context);
+    if (context.controllerRole === "power_telemetry" && !isPowerTimezone(request.sourceTimezone)) {
+      throw new ImportValidationError("Selecione o fuso horário do arquivo de potência: UTC ou America/Fortaleza.");
+    }
     const [downloadResponse, mappingsResponse] = await Promise.all([
       supabase.storage.from(IMPORT_BUCKET).download(request.objectPath),
       supabase
@@ -215,6 +221,7 @@ async function loadValidatedUpload(
       context,
       mappingsResponse.data,
       request.expectedDataKind,
+      request.sourceTimezone,
     );
 
     return { supabase, context, parsed };
@@ -255,6 +262,7 @@ export async function previewXlsxImport(
         .eq("generator_id", request.context.generatorId)
         .eq("controller_id", request.context.controllerId)
         .eq("data_kind", parsed.dataKind)
+        .eq("source_timezone", parsed.dataKind === "power_readings" ? parsed.sourceTimezone : "")
         .eq("status", "confirmed")
         .maybeSingle(),
     ]);
@@ -323,6 +331,9 @@ export async function previewXlsxImport(
         ...previewBase,
         dataKind: parsed.dataKind,
         deviceName: parsed.deviceName,
+        sourceTimezone: parsed.sourceTimezone,
+        rawPeriodStart: parsed.rawPeriodStart,
+        rawPeriodEnd: parsed.rawPeriodEnd,
         deviceId: parsed.deviceId,
         minPowerW: parsed.minPowerW,
         maxPowerW: parsed.maxPowerW,
@@ -367,6 +378,9 @@ export async function confirmXlsxImport(
     }
 
     const { supabase, parsed } = await loadValidatedUpload(request, profile.id);
+    if (parsed.dataKind === "power_readings" && parsed.sourceTimezone !== request.expectedSourceTimezone) {
+      return errorResult("O fuso mudou desde a prévia. Valide o arquivo novamente.");
+    }
 
     if (parsed.fileSha256 !== request.expectedFileSha256) {
       return errorResult(
@@ -395,6 +409,7 @@ export async function confirmXlsxImport(
           });
 
     if (error || !data || !isConfirmation(data)) {
+      if (error?.code === "P1301") return errorResult("Este arquivo já teve o horário corrigido. Selecione o fuso usado na correção.");
       logOperationalFailure("import_confirmation", error);
       const administrativeMessage = "Não foi possível confirmar a importação.";
       const failedResult = await supabase.rpc(
@@ -471,6 +486,9 @@ async function processImportSession(
     const powerLoaded = powerSettled.value;
     const stateParsed = stateLoaded.parsed;
     const powerParsed = powerLoaded.parsed;
+    if (powerParsed.dataKind === "power_readings" && powerParsed.sourceTimezone !== request.power.expectedSourceTimezone) {
+      return errorResult("O fuso mudou desde a prévia. Valide o arquivo de potência novamente.");
+    }
 
     if (
       stateParsed.dataKind !== "state_events" ||
@@ -532,6 +550,7 @@ async function processImportSession(
         });
 
     if (error) logOperationalFailure("session_processing", error);
+    if (error?.code === "P1301") return errorResult("Este arquivo já teve o horário corrigido. Selecione o fuso usado na correção.");
     if (error?.code === "P1206") {
       return errorResult(NOMINAL_PROFILE_REQUIRED_MESSAGE);
     }
