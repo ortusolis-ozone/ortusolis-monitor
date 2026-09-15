@@ -1,6 +1,6 @@
 # Spec 13 — Normalização do fuso horário da telemetria
 
-**Status:** concluída e validada localmente em 15/09/2026. Publicação remota pendente.
+**Status:** concluída e validada localmente em 15/09/2026. Migration aplicada em produção na mesma data; deploy da aplicação pendente.
 
 **Tipo:** evolução da importação conjunta de estado e potência.
 
@@ -113,7 +113,7 @@ Uma importação corrigida reavalia o gerador selecionado usando somente as leit
 - Validação visual local em 1440 e 390 px: arquivo UTC `10:00–12:30` exibido em Fortaleza como `07:00–09:30`, uma aplicação `within_expected`, uma `below_expected`, confirmação persistida e histórico com UTC. Trocar o fuso preservou a prévia de estado e bloqueou a confirmação até revalidar potência. Sem overflow horizontal da página.
 - Evidências locais: `output/playwright/spec13/preview-1440.png` e `preview-390.png`.
 
-A implementação não publica automaticamente a aplicação nem aplica esta migration ao banco remoto. A correção de arquivos reais acontece após a publicação e a reimportação explícita pelo Master.
+A migration foi aplicada ao banco de produção em 15/09/2026. A correção de arquivos reais acontece após o deploy da aplicação e a reimportação explícita pelo Master.
 
 ## Validação concluída
 
@@ -122,4 +122,12 @@ A implementação não publica automaticamente a aplicação nem aplica esta mig
 - As 22 migrations foram aplicadas do zero com `supabase db reset --local --no-seed --yes`; a nova migration consta no histórico local.
 - 19 arquivos SQL aprovados, incluindo correção após importação legada, deduplicação de arquivo sobreposto, bloqueio de interpretação obsoleta, falha tardia com rollback, privacidade e autorização. Antes do reset, os 18 existentes e o novo teste passaram pelo CLI; após o reset, o executor Docker ficou parado e a suíte completa foi executada diretamente com `psql`, `ON_ERROR_STOP`, verificação das saídas TAP e rollback por arquivo.
 - `supabase db lint --local --schema public,private` sem erros e tipos públicos atualizados.
-- Dados sintéticos da validação visual removidos pela recriação local; nenhuma alteração remota foi executada nesta entrega.
+- Dados sintéticos da validação visual removidos pela recriação local.
+
+## Aplicação em produção
+
+- Em 15/09/2026, o dry-run identificou somente `20260915173810_telemetry_source_timezone.sql` como pendente no projeto `wvaeojbuarhfizdpxldi`.
+- Migration aplicada com `supabase db push --linked --yes` após o commit de implementação `eca985a`.
+- Histórico remoto conferido: as 22 migrations locais e remotas estão alinhadas.
+- `supabase db lint --linked --schema public,private` concluído sem erros.
+- Deploy da aplicação e reimportação de arquivos reais não foram executados nesta etapa.
