@@ -30,6 +30,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 10 | [Duplo controlador e telemetria de potência](./10-duplo-controlador-e-telemetria-de-potencia.md) | Dois sinais por gerador, importação de potência e evidência sanitizada | Não se aplica | Concluída |
 | 11 | [Importação conjunta de estado e potência](./11-importacao-conjunta-de-estado-e-potencia.md) | Dois campos visíveis, confirmação conjunta e histórico agrupado | Não se aplica | Concluída |
 | 12 | [Potência nominal e alerta de redução operacional](./12-potencia-nominal-e-alerta-de-reducao-operacional.md) | Mínimo automático de 85%, diagnóstico técnico e alerta qualitativo | Não se aplica | Concluída; validada localmente |
+| 13 | [Normalização do fuso horário da telemetria](./13-normalizacao-de-fuso-horario-da-telemetria.md) | Conversão explícita de UTC para correlação temporal confiável | Não se aplica | Proposta |
 
 ## Marcos
 
@@ -40,6 +41,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 5. **Evolução de telemetria:** spec 10 concluída.
 6. **Operação conjunta das duas fontes:** spec 11 concluída.
 7. **Avaliação da potência operacional:** spec 12 concluída e validada localmente em 15/09/2026.
+8. **Correção temporal da telemetria:** spec 13 proposta após confirmar diferença de três horas nos arquivos de potência.
 
 Cada spec deve ser detalhada imediatamente antes de sua implementação. Uma etapa só avança quando os critérios de aceite da anterior estiverem atendidos.
 
