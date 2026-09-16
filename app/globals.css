@@ -2768,3 +2768,207 @@ details[open] > summary .details-indicator::after {
 
 .portal-attention { display: grid; gap: 0.35rem; max-width: 30rem; padding: 0.65rem; border-left: 3px solid #98620a; background: #fff6df; color: #684307; white-space: normal; }
 .portal-attention small { line-height: 1.5; }
+
+.portal-calendar {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-9);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.portal-calendar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.portal-calendar-header h2 {
+  margin-top: 0.2rem;
+  font-size: var(--font-size-section-title);
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--tracking-heading);
+  text-transform: capitalize;
+}
+
+.portal-month-navigation {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-3);
+}
+
+.portal-month-navigation a {
+  min-height: 2.65rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3);
+  color: var(--color-brand);
+  font-size: var(--font-size-compact);
+  font-weight: var(--font-weight-heading);
+  text-decoration: none;
+}
+
+.portal-month-navigation a:hover {
+  border-color: var(--color-brand);
+  background: var(--color-brand-highlight);
+}
+
+.portal-calendar-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--color-border);
+}
+
+.portal-calendar-summary > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface-soft);
+}
+
+.portal-calendar-summary dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-micro);
+  font-weight: var(--font-weight-emphasis);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.portal-calendar-summary dd {
+  font-size: var(--font-size-title-small);
+  font-weight: var(--font-weight-heading);
+}
+
+.portal-calendar-filters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.portal-application-day-list {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--color-surface-subtle);
+}
+
+.portal-application-day {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-6);
+  background: var(--color-white);
+}
+
+.portal-application-day > h3 {
+  padding: 0.8rem var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-heading);
+  text-transform: capitalize;
+}
+
+.portal-application-day-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.portal-application-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-3);
+  background: var(--color-surface-soft);
+}
+
+.portal-application-card strong,
+.portal-application-context {
+  display: block;
+}
+
+.portal-application-card strong {
+  margin-top: 0.12rem;
+  font-size: var(--font-size-helper);
+  font-weight: var(--font-weight-heading);
+  line-height: var(--leading-compact);
+}
+
+.portal-application-context {
+  margin-top: 0.22rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--leading-compact);
+}
+
+.portal-application-measurements {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.55rem;
+}
+
+.portal-application-measurements div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.portal-application-measurements dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.portal-application-measurements dd {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heading);
+  text-align: right;
+}
+
+.portal-application-card .portal-attention {
+  padding: 0.5rem;
+  font-size: var(--font-size-xs);
+}
+
+.portal-application-card .portal-attention small {
+  font-size: var(--font-size-xs);
+}
+
+@media (min-width: 38.01rem) and (max-width: 65rem) {
+  .portal-calendar-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 38rem) {
+  .portal-calendar-header {
+    flex-direction: column;
+  }
+
+  .portal-month-navigation {
+    width: 100%;
+  }
+
+  .portal-month-navigation a {
+    flex: 1;
+    text-align: center;
+  }
+
+  .portal-calendar-summary,
+  .portal-calendar-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-application-day-list {
+    padding: 0.85rem;
+  }
+
+  .portal-application-day-items {
+    grid-template-columns: 1fr;
+    padding: var(--space-3);
+  }
+}

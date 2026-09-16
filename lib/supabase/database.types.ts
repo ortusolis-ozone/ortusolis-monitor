@@ -1542,6 +1542,27 @@ export type Database = {
           status_date: string
         }[]
       }
+      list_client_application_details: {
+        Args: {
+          p_cold_room_id?: string
+          p_end_date?: string
+          p_generator_id?: string
+          p_location_id?: string
+          p_offset?: number
+          p_start_date?: string
+        }
+        Returns: {
+          application_ended_at: string
+          application_started_at: string
+          attention_status: string
+          client_id: string
+          cold_room_id: string
+          generator_id: string
+          location_id: string
+          max_measured_power_w: string | null
+          status_date: string
+        }[]
+      }
       list_source_values: {
         Args: never
         Returns: {

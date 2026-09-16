@@ -1,6 +1,7 @@
-import type { PortalStatus, AttentionStatus } from "./constants";
+import type { AttentionStatus } from "./constants";
 
 export type PortalFilters = {
+  month?: string;
   startDate?: string;
   endDate?: string;
   locationId?: string;
@@ -9,12 +10,12 @@ export type PortalFilters = {
 };
 
 export type ResolvedPortalFilters = {
+  month: string;
   startDate: string;
   endDate: string;
   locationId?: string;
   coldRoomId?: string;
   generatorId?: string;
-  dateRangeWasAdjusted: boolean;
 };
 
 export type PortalFilterOptions = {
@@ -28,56 +29,32 @@ export type PortalFilterOptions = {
   generators: Array<{ id: string; identifier: string }>;
 };
 
-export type PortalGeneratorOverview = {
-  id: string;
-  identifier: string;
-  status: PortalStatus;
-  attentionStatus: AttentionStatus;
-};
-
-export type PortalColdRoomOverview = {
-  id: string;
-  name: string;
-  status: PortalStatus | null;
-  generators: PortalGeneratorOverview[];
-};
-
-export type PortalLocationOverview = {
-  id: string;
-  name: string;
-  status: PortalStatus | null;
-  coldRooms: PortalColdRoomOverview[];
-};
-
-export type PortalHistoryItem = {
+export type PortalApplicationItem = {
   statusDate: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  maxMeasuredPowerW: string | null;
   locationId: string;
   locationName: string;
   coldRoomId: string;
   coldRoomName: string;
   generatorId: string;
   generatorIdentifier: string;
-  status: PortalStatus;
   attentionStatus: AttentionStatus;
 };
 
-export type PortalVerificationItem = Omit<
-  PortalHistoryItem,
-  "status" | "attentionStatus"
->;
+export type PortalCalendarDay = {
+  date: string;
+  applications: PortalApplicationItem[];
+};
 
 export type PortalPageData = {
   clientName: string;
   updatedThrough: string | null;
-  overviewDate: string | null;
-  overallStatus: PortalStatus | null;
-  overview: PortalLocationOverview[];
-  generatorsWithoutPublishedContext: Array<{
-    id: string;
-    identifier: string;
-  }>;
-  verificationItems: PortalVerificationItem[];
-  history: PortalHistoryItem[];
+  applications: PortalCalendarDay[];
+  applicationCount: number;
+  generatorCount: number;
+  attentionCount: number;
   filters: ResolvedPortalFilters;
   options: PortalFilterOptions;
   hasPublishedStatus: boolean;

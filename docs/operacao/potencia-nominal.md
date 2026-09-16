@@ -118,10 +118,11 @@ sem contagem. Os demais estados públicos de qualidade/disponibilidade continuam
 separados. O cabeçalho indica o último dia publicado, não o horário do último
 reprocessamento. O cliente não deve alterar o equipamento em resposta ao aviso.
 
-O portal usa apenas `list_client_application_status`. Perfis, watts, percentuais,
-limites, motivos internos e identificadores técnicos não entram em seu contrato.
-O caminho antigo `client_daily_status` é restrito ao Master por RLS. Um rollback
-de interface não autoriza restaurar o acesso cliente à evidência elétrica.
+O portal usa o status diário e a agenda sanitizada por aplicação. Para cada
+aplicação concluída, ele pode exibir o horário local de início/fim e apenas a
+maior potência medida dentro desse intervalo. Perfis, percentuais, limites,
+motivos internos, leituras individuais e identificadores técnicos não entram no
+contrato. O caminho antigo `client_daily_status` é restrito ao Master por RLS.
 
 ## Validação e publicação
 

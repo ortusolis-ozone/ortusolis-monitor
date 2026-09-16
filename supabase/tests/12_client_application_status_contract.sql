@@ -200,6 +200,8 @@ select
 from (
   values
     ('2026-09-01 10:00:10+00'::timestamptz, 84.000::numeric, '8201'),
+    ('2026-09-01 10:10:00+00'::timestamptz, 70.000::numeric, '8206'),
+    ('2026-09-01 10:20:00+00'::timestamptz, 96.000::numeric, '8207'),
     ('2026-09-01 12:00:10+00'::timestamptz, 80.000::numeric, '8202'),
     ('2026-09-02 10:00:10+00'::timestamptz, 85.000::numeric, '8203')
 ) as source(occurred_at, power_w, fingerprint_seed);
@@ -377,6 +379,19 @@ begin
     )
   ) then
     raise exception 'filtro permitiu inferir dados do cliente B';
+  end if;
+
+  if (select count(*) from public.list_client_application_details()) <> 5
+    or not exists (
+      select 1
+      from public.list_client_application_details()
+      where status_date = '2026-09-01'
+        and application_started_at = '07:00:00'::time
+        and application_ended_at = '07:30:00'::time
+        and max_measured_power_w = 96
+        and attention_status = 'attention'
+    ) then
+    raise exception 'a agenda não retornou horário local e maior potência do intervalo';
   end if;
 end;
 $$;

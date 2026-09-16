@@ -3,17 +3,12 @@ import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { PublicStatusBadge } from "@/components/public-status-badge";
 import { requireClientProfile } from "@/lib/auth/profile";
-import {
-  portalStatuses,
-  portalStatusDetails,
-} from "@/lib/portal/constants";
 import { getPortalPageData } from "@/lib/portal/queries";
 import type {
+  PortalApplicationItem,
+  PortalCalendarDay,
   PortalFilterOptions,
   PortalFilters,
-  PortalHistoryItem,
-  PortalLocationOverview,
-  PortalVerificationItem,
   ResolvedPortalFilters,
 } from "@/lib/portal/types";
 
@@ -21,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 type PortalPageProps = {
   searchParams: Promise<{
+    month?: string | string[];
     from?: string | string[];
     to?: string | string[];
     location?: string | string[];
@@ -32,6 +28,7 @@ type PortalPageProps = {
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -49,6 +46,7 @@ function isValidIsoDate(value: string | undefined): value is string {
 function parseFilters(
   values: Awaited<PortalPageProps["searchParams"]>,
 ): PortalFilters {
+  const month = firstValue(values.month);
   const from = firstValue(values.from);
   const to = firstValue(values.to);
   const location = firstValue(values.location);
@@ -56,6 +54,7 @@ function parseFilters(
   const generator = firstValue(values.generator);
 
   return {
+    ...(month && monthPattern.test(month) ? { month } : {}),
     ...(isValidIsoDate(from) ? { startDate: from } : {}),
     ...(isValidIsoDate(to) ? { endDate: to } : {}),
     ...(location && uuidPattern.test(location) ? { locationId: location } : {}),
@@ -71,239 +70,137 @@ function formatPortalDate(value: string) {
   return `${day}/${month}/${year}`;
 }
 
-function historyHref(
+function formatMonth(value: string) {
+  const [year, month] = value.split("-").map(Number);
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+function formatApplicationDay(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function formatTime(value: string | null) {
+  return value ? value.slice(0, 5) : "Não disponível";
+}
+
+function formatPower(value: string | null) {
+  if (value === null) return "Não disponível";
+
+  return `${new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 2,
+  }).format(Number(value))} W`;
+}
+
+function shiftMonth(value: string, amount: number) {
+  const [year, month] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + amount, 1));
+  return date.toISOString().slice(0, 7);
+}
+
+function portalHref(
   filters: ResolvedPortalFilters,
-  selection: {
-    locationId?: string;
-    coldRoomId?: string;
-    generatorId?: string;
-  },
+  overrides: Partial<Pick<ResolvedPortalFilters, "month" | "locationId" | "coldRoomId" | "generatorId">> = {},
 ) {
-  const params = new URLSearchParams({
-    from: filters.startDate,
-    to: filters.endDate,
-  });
+  const selection = { ...filters, ...overrides };
+  const params = new URLSearchParams({ month: selection.month });
 
   if (selection.locationId) params.set("location", selection.locationId);
   if (selection.coldRoomId) params.set("room", selection.coldRoomId);
   if (selection.generatorId) params.set("generator", selection.generatorId);
 
-  return `/portal?${params.toString()}#historico`;
+  return `/portal?${params.toString()}`;
 }
 
-function EmptyPublicStatus() {
-  return <span className="public-status-empty">Sem registros publicados</span>;
-}
-
-function ApplicationStatus({ status, attentionStatus }: Pick<PortalHistoryItem, "status" | "attentionStatus">) {
+function ApplicationStatus({
+  attentionStatus,
+}: Pick<PortalApplicationItem, "attentionStatus">) {
   if (attentionStatus === "attention") {
     return (
       <span className="portal-attention" role="status">
         <strong>Aplicação registrada — atenção necessária</strong>
-        <small>O consumo elétrico registrado ficou abaixo do esperado. A Ortusolis deve verificar o equipamento.</small>
+        <small>
+          O consumo elétrico registrado ficou abaixo do esperado. A Ortusolis
+          deve verificar o equipamento.
+        </small>
       </span>
     );
   }
-  return <PublicStatusBadge compact status={status} />;
+
+  return <PublicStatusBadge compact status="registered" />;
 }
 
-function StatusLegend() {
+function ApplicationCard({ application }: { application: PortalApplicationItem }) {
   return (
-    <section aria-labelledby="status-legend-title" className="status-legend">
-      <div className="section-title-row">
-        <div>
-          <p className="eyebrow">Como interpretar</p>
-          <h2 id="status-legend-title">Estados dos registros</h2>
-        </div>
-      </div>
-      <div className="status-legend-grid">
-        {portalStatuses.map((status) => (
-          <article className={`status-legend-item ${status}`} key={status}>
-            <PublicStatusBadge compact status={status} />
-            <p>{portalStatusDetails[status].description}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function VerificationPanel({
-  items,
-  filters,
-}: {
-  items: PortalVerificationItem[];
-  filters: ResolvedPortalFilters;
-}) {
-  if (items.length === 0) return null;
-
-  return (
-    <section
-      aria-labelledby="verification-title"
-      className="portal-verification-panel"
-    >
-      <header>
-        <div>
-          <p className="eyebrow">Atenção nos registros</p>
-          <h2 id="verification-title">Itens que requerem verificação</h2>
-          <p>
-            Há uma inconsistência nos registros destes geradores. Isso não
-            confirma falha do equipamento.
-          </p>
-        </div>
-        <PublicStatusBadge status="verification_required" />
-      </header>
-      <ul>
-        {items.map((item) => (
-          <li key={item.generatorId}>
-            <div>
-              <strong>{item.generatorIdentifier}</strong>
-              <span>
-                {item.locationName} · {item.coldRoomName} · referência de{" "}
-                {formatPortalDate(item.statusDate)}
-              </span>
-            </div>
-            <Link
-              href={historyHref(
-                {
-                  ...filters,
-                  startDate: item.statusDate,
-                  endDate: item.statusDate,
-                },
-                {
-                  locationId: item.locationId,
-                  coldRoomId: item.coldRoomId,
-                  generatorId: item.generatorId,
-                },
-              )}
-            >
-              Consultar registro
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function GeneratorRow({
-  generator,
-  locationId,
-  coldRoomId,
-  filters,
-}: {
-  generator: PortalLocationOverview["coldRooms"][number]["generators"][number];
-  locationId: string;
-  coldRoomId: string;
-  filters: ResolvedPortalFilters;
-}) {
-  return (
-    <li className="portal-generator-row">
+    <article className="portal-application-card">
       <div>
         <span className="portal-hierarchy-label">Gerador</span>
-        <strong>{generator.identifier}</strong>
+        <strong>{application.generatorIdentifier}</strong>
+        <span className="portal-application-context">
+          {application.locationName} · {application.coldRoomName}
+        </span>
+        <dl className="portal-application-measurements">
+          <div>
+            <dt>Horário local</dt>
+            <dd>
+              {application.startedAt && application.endedAt
+                ? `${formatTime(application.startedAt)} – ${formatTime(application.endedAt)}`
+                : "Não disponível"}
+            </dd>
+          </div>
+          <div>
+            <dt>Maior potência medida</dt>
+            <dd>{formatPower(application.maxMeasuredPowerW)}</dd>
+          </div>
+        </dl>
       </div>
-      <div className="portal-node-actions">
-        <ApplicationStatus status={generator.status} attentionStatus={generator.attentionStatus} />
-        <Link
-          href={historyHref(filters, {
-            locationId,
-            coldRoomId,
-            generatorId: generator.id,
-          })}
-        >
-          Ver histórico
-        </Link>
-      </div>
-    </li>
+      <ApplicationStatus attentionStatus={application.attentionStatus} />
+    </article>
   );
 }
 
-function LocationOverview({
-  location,
-  filters,
+function ApplicationDay({ day }: { day: PortalCalendarDay }) {
+  return (
+    <section className="portal-application-day">
+      <h3>
+        <time dateTime={day.date}>{formatApplicationDay(day.date)}</time>
+      </h3>
+      <div className="portal-application-day-items">
+        {day.applications.map((application) => (
+          <ApplicationCard
+            application={application}
+            key={`${application.generatorId}:${application.statusDate}:${application.startedAt}`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ApplicationDayList({
+  applications,
 }: {
-  location: PortalLocationOverview;
-  filters: ResolvedPortalFilters;
+  applications: PortalCalendarDay[];
 }) {
   return (
-    <details
-      className="portal-location"
-      open={location.status === "verification_required" || location.coldRooms.some((room) => room.generators.some((generator) => generator.attentionStatus === "attention"))}
-    >
-      <summary>
-        <div>
-          <span className="portal-hierarchy-label">Unidade</span>
-          <h3>{location.name}</h3>
-        </div>
-        <div className="portal-node-actions">
-          {location.status ? (
-            <PublicStatusBadge compact status={location.status} />
-          ) : (
-            <EmptyPublicStatus />
-          )}
-          <span aria-hidden="true" className="details-indicator">
-            Abrir
-          </span>
-        </div>
-      </summary>
-
-      <div className="portal-room-list">
-        {location.coldRooms.map((room) => (
-          <details
-            className="portal-room"
-            key={room.id}
-            open={room.status === "verification_required" || room.generators.some((generator) => generator.attentionStatus === "attention")}
-          >
-            <summary>
-              <div>
-                <span className="portal-hierarchy-label">Câmara</span>
-                <h4>{room.name}</h4>
-              </div>
-              <div className="portal-node-actions">
-                {room.status ? (
-                  <PublicStatusBadge compact status={room.status} />
-                ) : (
-                  <EmptyPublicStatus />
-                )}
-                <span aria-hidden="true" className="details-indicator">
-                  Abrir
-                </span>
-              </div>
-            </summary>
-
-            {room.generators.length > 0 ? (
-              <ul className="portal-generator-list">
-                {room.generators.map((generator) => (
-                  <GeneratorRow
-                    coldRoomId={room.id}
-                    filters={filters}
-                    generator={generator}
-                    key={generator.id}
-                    locationId={location.id}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="portal-node-empty">
-                Esta câmara ainda não possui registros públicos para a data da
-                visão geral.
-              </p>
-            )}
-          </details>
-        ))}
-
-        {location.coldRooms.length === 0 ? (
-          <p className="portal-node-empty">
-            Esta unidade ainda não possui câmaras cadastradas.
-          </p>
-        ) : null}
-      </div>
-    </details>
+    <div className="portal-application-day-list">
+      {applications.map((day) => (
+        <ApplicationDay day={day} key={day.date} />
+      ))}
+    </div>
   );
 }
 
-function HistoryFilters({
+function CalendarFilters({
   filters,
   options,
 }: {
@@ -311,32 +208,14 @@ function HistoryFilters({
   options: PortalFilterOptions;
 }) {
   return (
-    <form className="portal-filters" method="get">
+    <form className="portal-filters portal-calendar-filters" method="get">
       <label>
-        De
-        <input
-          defaultValue={filters.startDate}
-          key={`from:${filters.startDate}`}
-          name="from"
-          type="date"
-        />
-      </label>
-      <label>
-        Até
-        <input
-          defaultValue={filters.endDate}
-          key={`to:${filters.endDate}`}
-          name="to"
-          type="date"
-        />
+        Mês
+        <input defaultValue={filters.month} name="month" type="month" />
       </label>
       <label>
         Unidade
-        <select
-          defaultValue={filters.locationId ?? ""}
-          key={`location:${filters.locationId ?? "all"}`}
-          name="location"
-        >
+        <select defaultValue={filters.locationId ?? ""} name="location">
           <option value="">Todas</option>
           {options.locations.map((location) => (
             <option key={location.id} value={location.id}>
@@ -347,11 +226,7 @@ function HistoryFilters({
       </label>
       <label>
         Câmara
-        <select
-          defaultValue={filters.coldRoomId ?? ""}
-          key={`room:${filters.coldRoomId ?? "all"}`}
-          name="room"
-        >
+        <select defaultValue={filters.coldRoomId ?? ""} name="room">
           <option value="">Todas</option>
           {options.coldRooms.map((room) => (
             <option key={room.id} value={room.id}>
@@ -362,11 +237,7 @@ function HistoryFilters({
       </label>
       <label>
         Gerador
-        <select
-          defaultValue={filters.generatorId ?? ""}
-          key={`generator:${filters.generatorId ?? "all"}`}
-          name="generator"
-        >
+        <select defaultValue={filters.generatorId ?? ""} name="generator">
           <option value="">Todos</option>
           {options.generators.map((generator) => (
             <option key={generator.id} value={generator.id}>
@@ -379,7 +250,11 @@ function HistoryFilters({
         <button className="primary-button" type="submit">
           Aplicar filtros
         </button>
-        <Link className="text-link" href="/portal#historico">
+        <Link className="text-link" href={portalHref(filters, {
+          locationId: undefined,
+          coldRoomId: undefined,
+          generatorId: undefined,
+        })}>
           Limpar
         </Link>
       </div>
@@ -387,77 +262,51 @@ function HistoryFilters({
   );
 }
 
-function HistoryTable({ history }: { history: PortalHistoryItem[] }) {
+function CalendarSummary({
+  applicationCount,
+  generatorCount,
+  attentionCount,
+}: {
+  applicationCount: number;
+  generatorCount: number;
+  attentionCount: number;
+}) {
   return (
-    <div className="portal-history-wrap">
-      <table className="portal-history-table">
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Unidade</th>
-            <th>Câmara</th>
-            <th>Gerador</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {history.map((item) => (
-            <tr key={`${item.generatorId}:${item.statusDate}`}>
-              <td data-label="Data">{formatPortalDate(item.statusDate)}</td>
-              <td data-label="Unidade">{item.locationName}</td>
-              <td data-label="Câmara">{item.coldRoomName}</td>
-              <td data-label="Gerador">{item.generatorIdentifier}</td>
-              <td data-label="Estado">
-                <ApplicationStatus status={item.status} attentionStatus={item.attentionStatus} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <dl className="portal-calendar-summary">
+      <div>
+        <dt>Aplicações registradas</dt>
+        <dd>{applicationCount}</dd>
+      </div>
+      <div>
+        <dt>Geradores com aplicação</dt>
+        <dd>{generatorCount}</dd>
+      </div>
+      <div>
+        <dt>Atenção necessária</dt>
+        <dd>{attentionCount}</dd>
+      </div>
+    </dl>
   );
 }
 
-function HistoryEmptyState({
+function CalendarEmptyState({
   hasPublishedStatus,
-  overviewDate,
-  filters,
+  month,
 }: {
   hasPublishedStatus: boolean;
-  overviewDate: string | null;
-  filters: ResolvedPortalFilters;
+  month: string;
 }) {
-  if (!hasPublishedStatus) {
-    return (
-      <div className="portal-empty-state">
-        <strong>Aguardando a primeira atualização</strong>
-        <p>
-          Ainda não há registros públicos disponíveis para esta empresa. Assim
-          que uma importação for processada, os estados diários aparecerão aqui.
-        </p>
-      </div>
-    );
-  }
-
-  if (overviewDate && filters.startDate > overviewDate) {
-    return (
-      <div className="portal-empty-state">
-        <strong>Período ainda não publicado</strong>
-        <p>
-          O intervalo selecionado começa depois da data mais recente disponível.
-          Isso significa que a atualização ainda não alcançou o período.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="portal-empty-state">
-      <strong>Nenhum registro para estes filtros</strong>
+      <strong>
+        {hasPublishedStatus
+          ? `Nenhuma aplicação registrada em ${formatMonth(month)}`
+          : "Aguardando a primeira atualização"}
+      </strong>
       <p>
-        “Sem dados” aparece quando o período já foi importado, mas não há
-        registro completo. “Aguardando atualização” aparece quando a importação
-        ainda não alcançou a data.
+        {hasPublishedStatus
+          ? "Não foram encontradas aplicações concluídas para os filtros selecionados."
+          : "Assim que uma importação for processada, as aplicações realizadas aparecerão aqui."}
       </p>
     </div>
   );
@@ -466,6 +315,8 @@ function HistoryEmptyState({
 export default async function PortalPage({ searchParams }: PortalPageProps) {
   const profile = await requireClientProfile();
   const data = await getPortalPageData(parseFilters(await searchParams));
+  const previousMonth = shiftMonth(data.filters.month, -1);
+  const nextMonth = shiftMonth(data.filters.month, 1);
 
   return (
     <main className="app-shell client-portal-shell">
@@ -478,10 +329,11 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
       <div className="client-portal-main">
         <section className="client-portal-hero">
           <div>
-            <p className="eyebrow">Registros da empresa</p>
+            <p className="eyebrow">Aplicações realizadas</p>
             <h1>{data.clientName}</h1>
             <p>
-              Consulte os estados públicos por unidade, câmara, gerador e data.
+              Acompanhe as aplicações importadas e processadas para seus
+              geradores.
             </p>
           </div>
           <div className="portal-update-card">
@@ -494,92 +346,39 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
           </div>
         </section>
 
-        <VerificationPanel
-          filters={data.filters}
-          items={data.verificationItems}
-        />
-
-        <StatusLegend />
-
-        <section aria-labelledby="overview-title" className="portal-overview">
-          <div className="section-title-row">
+        <section aria-labelledby="calendar-title" className="portal-calendar">
+          <header className="portal-calendar-header">
             <div>
-              <p className="eyebrow">Empresa → unidade → câmara → gerador</p>
-              <h2 id="overview-title">Visão consolidada</h2>
+              <p className="eyebrow">Agenda de aplicações</p>
+              <h2 id="calendar-title">{formatMonth(data.filters.month)}</h2>
               <p className="portal-section-description">
-                {data.overviewDate
-                  ? `Estado mais relevante em ${formatPortalDate(data.overviewDate)}.`
-                  : "Os estados aparecerão após a primeira atualização."}
+                Exibimos somente aplicações registradas. Datas sem cartão não
+                indicam falha ou ausência de aplicação.
               </p>
             </div>
-            {data.overallStatus ? (
-              <PublicStatusBadge status={data.overallStatus} />
-            ) : (
-              <EmptyPublicStatus />
-            )}
-          </div>
+            <nav aria-label="Navegação de meses" className="portal-month-navigation">
+              <Link href={portalHref(data.filters, { month: previousMonth })}>
+                Mês anterior
+              </Link>
+              <Link href={portalHref(data.filters, { month: nextMonth })}>
+                Próximo mês
+              </Link>
+            </nav>
+          </header>
 
-          {data.overview.length > 0 ? (
-            <div className="portal-location-list">
-              {data.overview.map((location) => (
-                <LocationOverview
-                  filters={data.filters}
-                  key={location.id}
-                  location={location}
-                />
-              ))}
-            </div>
+          <CalendarSummary
+            applicationCount={data.applicationCount}
+            attentionCount={data.attentionCount}
+            generatorCount={data.generatorCount}
+          />
+          <CalendarFilters filters={data.filters} options={data.options} />
+
+          {data.applications.length > 0 ? (
+            <ApplicationDayList applications={data.applications} />
           ) : (
-            <div className="portal-empty-state">
-              <strong>Nenhuma unidade cadastrada</strong>
-              <p>A hierarquia da empresa ainda não está disponível.</p>
-            </div>
-          )}
-
-          {data.generatorsWithoutPublishedContext.length > 0 ? (
-            <aside className="portal-unpublished-note">
-              <strong>Geradores ainda sem contexto publicado</strong>
-              <p>
-                Estes geradores aparecerão dentro da unidade e da câmara assim
-                que houver um primeiro estado público:{" "}
-                {data.generatorsWithoutPublishedContext
-                  .map((generator) => generator.identifier)
-                  .join(", ")}.
-              </p>
-            </aside>
-          ) : null}
-        </section>
-
-        <section
-          aria-labelledby="history-title"
-          className="portal-history"
-          id="historico"
-        >
-          <div className="section-title-row">
-            <div>
-              <p className="eyebrow">Consulta por dia</p>
-              <h2 id="history-title">Histórico diário</h2>
-              <p className="portal-section-description">
-                Filtre o período e os níveis da hierarquia que deseja consultar.
-              </p>
-            </div>
-          </div>
-
-          <HistoryFilters filters={data.filters} options={data.options} />
-
-          {data.filters.dateRangeWasAdjusted ? (
-            <p className="portal-filter-notice" role="status">
-              As datas estavam invertidas e foram reorganizadas para a consulta.
-            </p>
-          ) : null}
-
-          {data.history.length > 0 ? (
-            <HistoryTable history={data.history} />
-          ) : (
-            <HistoryEmptyState
-              filters={data.filters}
+            <CalendarEmptyState
               hasPublishedStatus={data.hasPublishedStatus}
-              overviewDate={data.overviewDate}
+              month={data.filters.month}
             />
           )}
         </section>
