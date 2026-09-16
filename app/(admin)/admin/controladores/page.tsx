@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ControllerGeneratorField } from "@/components/controller-generator-field";
 import { FieldError, OperationalForm } from "@/components/operational-form";
 import { ListFilters } from "@/components/list-filters";
 import { StatusBadge } from "@/components/status-badge";
@@ -60,19 +62,10 @@ export default async function ControllersPage({
             action={createControllerAction}
             submitLabel="Cadastrar controlador"
           >
-            <label>
-              Gerador
-              <select name="generator_id" required>
-                <option value="">Selecione</option>
-                {options.generators.map((generator) => (
-                  <option key={generator.id} value={generator.id}>
-                    {clientNames.get(generator.client_id)} —{" "}
-                    {generator.identifier}
-                  </option>
-                ))}
-              </select>
-              <FieldError name="generator_id" />
-            </label>
+            <ControllerGeneratorField generators={options.generators.map((generator) => ({
+              id: generator.id,
+              label: `${clientNames.get(generator.client_id)} — ${generator.identifier}`,
+            }))} />
             <label>
               Papel
               <select name="role" required>
@@ -167,6 +160,9 @@ export default async function ControllersPage({
                           <small className="table-secondary-line">
                             ≥ {controller.power_on_threshold_w} W · ≤ {controller.power_off_threshold_w} W · ±{controller.correlation_tolerance_seconds}s
                           </small>
+                          <Link className="table-secondary-line record-link" href={`/admin/geradores/${controller.generator_id}#edit-power-title`}>
+                            Configurar potência nominal do gerador
+                          </Link>
                         </span>
                       ) : (
                         "Rotina liga/desliga"
@@ -179,6 +175,14 @@ export default async function ControllersPage({
                       <div className="row-actions">
                         <details className="row-details">
                           <summary>Editar</summary>
+                          {controller.role === "power_telemetry" ? (
+                            <p className="field-hint">
+                              A potência nominal pertence ao gerador {controller.generatorName}. Alterações são registradas por vigência, preservando o histórico.
+                              {" "}<Link className="text-link" href={`/admin/geradores/${controller.generator_id}#edit-power-title`}>
+                                Cadastrar ou editar potência nominal
+                              </Link>
+                            </p>
+                          ) : null}
                           <OperationalForm
                             action={editControllerAction}
                             className="operational-form compact-form"
