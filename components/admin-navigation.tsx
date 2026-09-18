@@ -4,6 +4,7 @@ const navigation = [
   { href: "/admin", label: "Visão geral" },
   { href: "/admin/clientes", label: "Clientes e instalações" },
   { href: "/admin/importacoes", label: "Importações" },
+  { href: "/admin/aplicacoes", label: "Aplicações" },
   { href: "/admin/inconsistencias", label: "Inconsistências" },
   { href: "/admin/usuarios", label: "Usuários" },
   { href: "/admin/mapeamentos", label: "Mapeamento de origens" },

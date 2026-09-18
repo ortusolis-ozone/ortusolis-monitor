@@ -29,6 +29,16 @@ export async function getGeneratorApplicationDiagnostics(generatorId: string, pa
   return data;
 }
 
+export async function getAdminApplicationDiagnostics(page = 0): Promise<PowerDiagnostic[]> {
+  await requireMaster();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_admin_application_power_diagnostics", {
+    p_offset: page * 50,
+  });
+  if (error || data === null) throw new Error("Não foi possível carregar as aplicações.");
+  return data;
+}
+
 export async function getApplicationPowerDiagnostic(applicationId: number, historyPage = 0): Promise<{
   diagnostic: PowerDiagnostic | null;
   inconsistencies: PowerDiagnosticInconsistency[];
