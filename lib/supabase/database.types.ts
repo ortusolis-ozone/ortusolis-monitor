@@ -1396,6 +1396,28 @@ export type Database = {
           within_expected_count: number
         }[]
       }
+      list_admin_client_application_details: {
+        Args: {
+          p_client_id: string
+          p_cold_room_id?: string
+          p_end_date?: string
+          p_generator_id?: string
+          p_location_id?: string
+          p_offset?: number
+          p_start_date?: string
+        }
+        Returns: {
+          application_ended_at: string
+          application_started_at: string
+          attention_status: string
+          client_id: string
+          cold_room_id: string
+          generator_id: string
+          location_id: string
+          max_measured_power_w: number
+          status_date: string
+        }[]
+      }
       list_admin_generator_power_configuration: {
         Args: {
           p_at?: string
@@ -1523,25 +1545,6 @@ export type Database = {
           verification_status: string
         }[]
       }
-      list_client_application_status: {
-        Args: {
-          p_cold_room_id?: string
-          p_end_date?: string
-          p_generator_id?: string
-          p_location_id?: string
-          p_offset?: number
-          p_start_date?: string
-        }
-        Returns: {
-          application_status: string
-          attention_status: string
-          client_id: string
-          cold_room_id: string
-          generator_id: string
-          location_id: string
-          status_date: string
-        }[]
-      }
       list_client_application_details: {
         Args: {
           p_cold_room_id?: string
@@ -1559,7 +1562,26 @@ export type Database = {
           cold_room_id: string
           generator_id: string
           location_id: string
-          max_measured_power_w: string | null
+          max_measured_power_w: number
+          status_date: string
+        }[]
+      }
+      list_client_application_status: {
+        Args: {
+          p_cold_room_id?: string
+          p_end_date?: string
+          p_generator_id?: string
+          p_location_id?: string
+          p_offset?: number
+          p_start_date?: string
+        }
+        Returns: {
+          application_status: string
+          attention_status: string
+          client_id: string
+          cold_room_id: string
+          generator_id: string
+          location_id: string
           status_date: string
         }[]
       }
@@ -1839,12 +1861,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1868,11 +1890,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1893,11 +1915,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1918,11 +1940,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1935,11 +1957,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1953,3 +1975,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

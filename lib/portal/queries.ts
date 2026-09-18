@@ -28,7 +28,7 @@ type ResolvedApplicationRow = {
   status_date: string;
   application_started_at: string | null;
   application_ended_at: string | null;
-  max_measured_power_w: string | null;
+  max_measured_power_w: string | number | null;
   attention_status: string;
 };
 
@@ -249,7 +249,10 @@ export async function getPortalPageData(
       statusDate: row.status_date,
       startedAt: row.application_started_at,
       endedAt: row.application_ended_at,
-      maxMeasuredPowerW: row.max_measured_power_w,
+      maxMeasuredPowerW:
+        row.max_measured_power_w === null
+          ? null
+          : String(row.max_measured_power_w),
       locationId: row.location_id,
       locationName:
         locationNames.get(row.location_id) ?? "Unidade indisponível",
