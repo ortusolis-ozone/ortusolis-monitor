@@ -18,7 +18,7 @@ export function formatAdminDate(value: string | null) {
 }
 
 export function eventOperationLabel(value: string | null) {
-  if (value === "turn_on") return "Ligar";
-  if (value === "turn_off") return "Desligar";
+  if (value === "turn_on") return "Acionamento";
+  if (value === "turn_off") return "Desacionamento";
   return "—";
 }

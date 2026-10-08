@@ -152,6 +152,8 @@ export async function setSourceMappingAction(
   revalidatePath("/admin/geradores/[id]", "page");
   revalidatePath("/admin/mapeamentos");
   revalidatePath("/admin/importacoes");
+  revalidatePath("/admin/aplicacoes");
+  revalidatePath("/portal");
 
   return {
     status: "success",

@@ -192,6 +192,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id: number
+          metadata: Json
           occurred_at: string
         }
         Insert: {
@@ -200,6 +201,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id?: never
+          metadata?: Json
           occurred_at?: string
         }
         Update: {
@@ -208,6 +210,7 @@ export type Database = {
           entity_id?: string
           entity_type?: string
           id?: never
+          metadata?: Json
           occurred_at?: string
         }
         Relationships: [

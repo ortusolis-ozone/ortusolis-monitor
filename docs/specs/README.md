@@ -31,6 +31,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 11 | [Importação conjunta de estado e potência](./11-importacao-conjunta-de-estado-e-potencia.md) | Dois campos visíveis, confirmação conjunta e histórico agrupado | Não se aplica | Concluída |
 | 12 | [Potência nominal e alerta de redução operacional](./12-potencia-nominal-e-alerta-de-reducao-operacional.md) | Mínimo automático de 85%, diagnóstico técnico e alerta qualitativo | Não se aplica | Concluída; validada localmente |
 | 13 | [Normalização do fuso horário da telemetria](./13-normalizacao-de-fuso-horario-da-telemetria.md) | Fuso explícito, correlação normalizada e correção auditável de leituras | Não se aplica | Concluída; migration em produção; deploy pendente |
+| 14 | [Mapeamento de origens e comandos manuais](./14-mapeamento-de-origens-e-comandos-manuais.md) | Origens explicadas, comandos manuais identificados e histórico reclassificado | Não se aplica | Implementada; validada localmente; publicação pendente |
 
 ## Marcos
 

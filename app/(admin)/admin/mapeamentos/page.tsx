@@ -3,6 +3,7 @@ import { setSourceMappingAction } from "@/lib/admin/actions";
 import {
   sourceClassifications,
   sourceClassificationLabel,
+  sourceDescription,
 } from "@/lib/admin/constants";
 import { formatAdminDateTime } from "@/lib/admin/format";
 import { getSourceValues } from "@/lib/admin/queries";
@@ -16,8 +17,9 @@ export default async function SourceMappingsPage() {
         <p className="eyebrow">Acionado por</p>
         <h1>Mapeamento de origens</h1>
         <p>
-          Classifique os valores encontrados nos arquivos como programação ou
-          teste. Valores sem mapeamento ativo continuam desconhecidos.
+          Identifique comandos programados e manuais a partir da origem registrada
+          nos arquivos. A operação de cada evento informa se houve acionamento ou
+          desacionamento. Valores sem mapeamento ativo continuam desconhecidos.
         </p>
       </section>
 
@@ -26,6 +28,11 @@ export default async function SourceMappingsPage() {
         <p>
           Toda mudança solicita confirmação e reprocessa imediatamente os
           eventos, inconsistências e estados dos geradores afetados.
+        </p>
+        <p>
+          Comandos manuais, geralmente utilizados para testes, ficam fora do
+          cálculo de aplicações programadas. O sistema não verifica o cumprimento
+          de uma agenda.
         </p>
       </aside>
 
@@ -41,7 +48,7 @@ export default async function SourceMappingsPage() {
                 <tr>
                   <th>Valor encontrado</th>
                   <th>Valor normalizado</th>
-                  <th>Uso</th>
+                  <th>Eventos registrados</th>
                   <th>Classificação atual</th>
                   <th>Alterar mapeamento</th>
                 </tr>
@@ -56,6 +63,19 @@ export default async function SourceMappingsPage() {
                     <tr key={source.normalized_source}>
                       <td>
                         <strong>{source.example_source}</strong>
+                        <small className="table-secondary-line source-description">
+                          {sourceDescription(
+                            source.normalized_source,
+                            currentClassification ?? "unknown",
+                          )}
+                        </small>
+                        {source.normalized_source === "ortusolis@ortusolis.com.br" &&
+                          currentClassification === "test" && (
+                            <small className="table-secondary-line">
+                              Para atualizar o histórico, selecione Manual e salve
+                              o mapeamento.
+                            </small>
+                          )}
                       </td>
                       <td>
                         <code>{source.normalized_source}</code>
@@ -88,12 +108,17 @@ export default async function SourceMappingsPage() {
                             value={source.normalized_source}
                           />
                           <label>
-                            <span className="sr-only">Nova classificação</span>
                             <select
+                              aria-label={`Nova classificação de ${source.example_source}`}
                               defaultValue={currentClassification}
                               key={currentClassification}
                               name="classification"
                             >
+                              {currentClassification === "test" && (
+                                <option value="test" disabled>
+                                  Teste (legado)
+                                </option>
+                              )}
                               {sourceClassifications.map((option) => (
                                 <option key={option.value} value={option.value}>
                                   {option.label}

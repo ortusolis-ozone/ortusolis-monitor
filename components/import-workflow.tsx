@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { POWER_TIMEZONES } from "@/lib/imports/timezone";
 import { useRouter } from "next/navigation";
+import { sourceClassificationLabel } from "@/lib/admin/constants";
+import { eventOperationLabel } from "@/lib/admin/format";
 
 import {
   confirmImportSession,
@@ -137,16 +139,6 @@ function formatFileSize(bytes: number) {
   }).format(bytes / 1024 / 1024);
 }
 
-function operationLabel(operation: "turn_on" | "turn_off") {
-  return operation === "turn_on" ? "Ligar" : "Desligar";
-}
-
-function classificationLabel(classification: string) {
-  if (classification === "programmed") return "Programada";
-  if (classification === "test") return "Teste";
-  return "Desconhecida";
-}
-
 function electricalStateLabel(state: "on" | "off" | "hysteresis") {
   if (state === "on") return "Ligada";
   if (state === "off") return "Desligada";
@@ -242,10 +234,10 @@ function StatePreview({ preview }: { preview: ImportPreview }) {
                   {formatDateTime(row.occurredAt, preview.timeZone)}
                 </td>
                 <td title={`Original: ${row.operationRaw}`}>
-                  {operationLabel(row.operation)}
+                  {eventOperationLabel(row.operation)}
                 </td>
                 <td>{row.sourceOriginal || "(vazio)"}</td>
-                <td>{classificationLabel(row.sourceClassification)}</td>
+                <td>{sourceClassificationLabel(row.sourceClassification)}</td>
               </tr>
             ))}
           </tbody>

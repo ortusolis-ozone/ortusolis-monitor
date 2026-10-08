@@ -444,10 +444,14 @@ export async function parseImportWorkbook(
   const errors: string[] = [];
 
   if (selected.dataKind === "state_events") {
-    const classifications = new Map<string, "programmed" | "test">(
+    const classifications = new Map<string, ParsedImportEvent["source_classification"]>(
       sourceMappings.map((mapping) => [
         normalizeSource(mapping.normalized_source),
-        mapping.classification === "programmed" ? "programmed" : "test",
+        mapping.classification === "programmed" ||
+        mapping.classification === "manual" ||
+        mapping.classification === "test"
+          ? mapping.classification
+          : "unknown",
       ]),
     );
     const timeIndex = selected.indexes.get("tempo")!;

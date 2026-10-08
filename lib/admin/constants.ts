@@ -23,7 +23,7 @@ export const inconsistencyTypes = [
 export const sourceClassifications = [
   { value: "unknown", label: "Desconhecida" },
   { value: "programmed", label: "Programada" },
-  { value: "test", label: "Teste" },
+  { value: "manual", label: "Manual" },
 ] as const;
 
 export type InconsistencyStatus =
@@ -47,8 +47,31 @@ export function inconsistencyTypeLabel(value: string) {
 }
 
 export function sourceClassificationLabel(value: string) {
+  if (value === "test") return "Teste (legado)";
   return (
     sourceClassifications.find((option) => option.value === value)?.label ??
     value
   );
+}
+
+const sourceDescriptions = new Map([
+  ["cronômetros regressivos", "Acionamento automático pela agenda programada."],
+  ["dispositivo-inching", "Desacionamento automático programado."],
+  [
+    "ortusolis@ortusolis.com.br",
+    "Comando manual do usuário Ortusolis, utilizado fora do horário agendado, geralmente para testes.",
+  ],
+]);
+
+export function sourceDescription(source: string, classification: string) {
+  const knownDescription = sourceDescriptions.get(source.trim().toLowerCase());
+  if (knownDescription) return knownDescription;
+  if (classification === "programmed") {
+    return "Origem classificada como programação automática.";
+  }
+  if (classification === "manual") return "Comando emitido manualmente.";
+  if (classification === "test") {
+    return "Origem classificada como teste no mapeamento legado.";
+  }
+  return "Origem sem mapeamento ativo. Requer classificação pelo Master.";
 }

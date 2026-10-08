@@ -77,7 +77,7 @@ export type StateImportPreviewRow = {
   operation: "turn_on" | "turn_off";
   operationRaw: string;
   sourceOriginal: string;
-  sourceClassification: "programmed" | "test" | "unknown";
+  sourceClassification: "programmed" | "manual" | "test" | "unknown";
 };
 
 export type PowerImportPreviewRow = {
@@ -283,7 +283,7 @@ export type ParsedImportEvent = {
   operation_raw: string;
   source_original: string;
   source_normalized: string;
-  source_classification: "programmed" | "test" | "unknown";
+  source_classification: StateImportPreviewRow["sourceClassification"];
   fingerprint: string;
 };
 

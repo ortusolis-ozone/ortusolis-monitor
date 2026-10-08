@@ -1752,9 +1752,16 @@ tbody tr:last-child td {
   color: var(--color-success);
 }
 
+.source-status.manual,
 .source-status.test {
   background: var(--color-info-surface);
   color: var(--color-info);
+}
+
+.source-description {
+  min-width: 15rem;
+  max-width: 24rem;
+  white-space: normal;
 }
 
 .inconsistency-context {
