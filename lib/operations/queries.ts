@@ -4,6 +4,7 @@ import { requireMaster } from "@/lib/auth/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/supabase/database.types";
+import { normalizeCnpj } from "@/lib/validation/cnpj";
 
 import type { StatusFilter } from "./constants";
 
@@ -51,14 +52,14 @@ export async function getClients(options?: {
     .order("legal_name");
   const clients = assertData(response.data, response.error, "os clientes");
   const query = options?.query?.trim().toLocaleLowerCase("pt-BR") ?? "";
-  const digits = query.replace(/\D/g, "");
+  const cnpjQuery = normalizeCnpj(query);
   const status = options?.status ?? "all";
 
   return clients.filter((client) => {
     const matchesQuery =
       !query ||
       client.legal_name.toLocaleLowerCase("pt-BR").includes(query) ||
-      (digits.length > 0 && client.cnpj.includes(digits));
+      (cnpjQuery.length > 0 && client.cnpj.includes(cnpjQuery));
 
     return matchesQuery && matchesStatus(client.is_active, status);
   });

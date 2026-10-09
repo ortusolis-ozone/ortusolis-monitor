@@ -53,9 +53,11 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
                 CNPJ
                 <input
                   autoComplete="off"
-                  inputMode="numeric"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  spellCheck={false}
                   name="cnpj"
-                  placeholder="00.000.000/0000-00"
+                  placeholder="12.ABC.345/01DE-35"
                   required
                 />
                 <FieldError name="cnpj" />
@@ -126,6 +128,9 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
                             CNPJ
                             <input
                               defaultValue={formatCnpj(client.cnpj)}
+                              autoCapitalize="characters"
+                              spellCheck={false}
+                              placeholder="12.ABC.345/01DE-35"
                               name="cnpj"
                               required
                             />

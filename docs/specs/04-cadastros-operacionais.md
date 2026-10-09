@@ -32,7 +32,7 @@ Permitir que a Ortusolis configure a estrutura necessária para associar correta
 ## Validações
 
 - Campos mínimos do PRD são obrigatórios.
-- CNPJ é normalizado e validado antes de persistir.
+- CNPJ numérico ou alfanumérico é normalizado sem máscara, em maiúsculas, e validado antes de persistir. As primeiras 12 posições aceitam números e letras A–Z; as duas últimas são dígitos verificadores numéricos, calculados por módulo 11 com o valor ASCII menos 48. Busca e exibição preservam letras.
 - Categoria de câmara usa a lista definida no PRD, incluindo `outros`.
 - Não pode haver duas alocações ativas do mesmo gerador.
 - Não pode haver dois controladores ativos simultaneamente no mesmo gerador.

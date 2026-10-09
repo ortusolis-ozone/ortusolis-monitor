@@ -1,11 +1,15 @@
 export function normalizeCnpj(value: string) {
-  return value.replace(/\D/g, "");
+  return value.toUpperCase().replace(/[.\/\-\s]/g, "");
 }
 
 function calculateDigit(base: string, weights: number[]) {
   const sum = base
     .split("")
-    .reduce((total, digit, index) => total + Number(digit) * weights[index], 0);
+    // Receita Federal: valor ASCII do caractere menos 48, inclusive para letras.
+    .reduce(
+      (total, digit, index) => total + (digit.charCodeAt(0) - 48) * weights[index],
+      0,
+    );
   const remainder = sum % 11;
 
   return remainder < 2 ? 0 : 11 - remainder;
@@ -14,7 +18,7 @@ function calculateDigit(base: string, weights: number[]) {
 export function isValidCnpj(value: string) {
   const cnpj = normalizeCnpj(value);
 
-  if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) {
+  if (!/^[A-Z0-9]{12}[0-9]{2}$/.test(cnpj) || /^(\d)\1{13}$/.test(cnpj)) {
     return false;
   }
 
@@ -38,7 +42,7 @@ export function formatCnpj(value: string) {
   }
 
   return cnpj.replace(
-    /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+    /^([A-Z0-9]{2})([A-Z0-9]{3})([A-Z0-9]{3})([A-Z0-9]{4})(\d{2})$/,
     "$1.$2.$3/$4-$5",
   );
 }

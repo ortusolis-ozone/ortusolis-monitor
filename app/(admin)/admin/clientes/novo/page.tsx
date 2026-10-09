@@ -89,9 +89,11 @@ export default function NewCompleteClientStructurePage() {
                 CNPJ
                 <input
                   autoComplete="off"
-                  inputMode="numeric"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  spellCheck={false}
                   name="client_cnpj"
-                  placeholder="00.000.000/0000-00"
+                  placeholder="12.ABC.345/01DE-35"
                   required
                 />
                 <FieldError name="client_cnpj" />
