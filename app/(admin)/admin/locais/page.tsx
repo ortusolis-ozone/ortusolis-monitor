@@ -1,3 +1,4 @@
+import { TelemetryTimeBasisField } from "@/components/telemetry-time-basis-field";
 import { FieldError, OperationalForm } from "@/components/operational-form";
 import { ListFilters } from "@/components/list-filters";
 import { StatusBadge } from "@/components/status-badge";
@@ -71,6 +72,7 @@ export default async function LocationsPage({
               />
               <FieldError name="time_zone" />
             </label>
+            <TelemetryTimeBasisField />
           </OperationalForm>
         </details>
       </section>
@@ -85,7 +87,7 @@ export default async function LocationsPage({
                 <th>Unidade</th>
                 <th>Cliente</th>
                 <th>Localização</th>
-                <th>Fuso</th>
+                <th>Fuso / Telemetria</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
@@ -96,7 +98,7 @@ export default async function LocationsPage({
                   <td>{location.name}</td>
                   <td>{location.clientName}</td>
                   <td>{location.description || "—"}</td>
-                  <td>{location.time_zone}</td>
+                  <td>{location.time_zone}<br />Telemetria: {location.telemetry_time_basis === "utc" ? "UTC" : location.telemetry_time_basis === "location" ? "Horário da unidade" : "Não configurada"}</td>
                   <td>
                     <StatusBadge isActive={location.is_active} />
                   </td>
@@ -136,6 +138,7 @@ export default async function LocationsPage({
                             />
                             <FieldError name="time_zone" />
                           </label>
+                          <TelemetryTimeBasisField value={location.telemetry_time_basis} required={false} />
                         </OperationalForm>
                       </details>
                       <OperationalForm

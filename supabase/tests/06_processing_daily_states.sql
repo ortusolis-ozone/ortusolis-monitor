@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 
 -- The publication calendar uses the location timezone, including near UTC midnight.
 set local time zone 'America/Fortaleza';

@@ -567,6 +567,7 @@ export type Database = {
           period_start: string | null
           source_timezone: string
           status: string
+          temporal_context: Json | null
           total_rows: number
           unknown_source_rows: number
         }
@@ -591,6 +592,7 @@ export type Database = {
           period_start?: string | null
           source_timezone?: string
           status?: string
+          temporal_context?: Json | null
           total_rows?: number
           unknown_source_rows?: number
         }
@@ -615,6 +617,7 @@ export type Database = {
           period_start?: string | null
           source_timezone?: string
           status?: string
+          temporal_context?: Json | null
           total_rows?: number
           unknown_source_rows?: number
         }
@@ -684,6 +687,7 @@ export type Database = {
           state_period_end: string | null
           state_period_start: string | null
           status: string
+          temporal_context: Json | null
         }
         Insert: {
           client_id: string
@@ -712,6 +716,7 @@ export type Database = {
           state_period_end?: string | null
           state_period_start?: string | null
           status: string
+          temporal_context?: Json | null
         }
         Update: {
           client_id?: string
@@ -740,6 +745,7 @@ export type Database = {
           state_period_end?: string | null
           state_period_start?: string | null
           status?: string
+          temporal_context?: Json | null
         }
         Relationships: [
           {
@@ -926,7 +932,10 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          telemetry_revision: number
+          telemetry_time_basis: string | null
           time_zone: string
+          time_zone_revision: number
           updated_at: string
         }
         Insert: {
@@ -936,7 +945,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          telemetry_revision?: number
+          telemetry_time_basis?: string | null
           time_zone?: string
+          time_zone_revision?: number
           updated_at?: string
         }
         Update: {
@@ -946,7 +958,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          telemetry_revision?: number
+          telemetry_time_basis?: string | null
           time_zone?: string
+          time_zone_revision?: number
           updated_at?: string
         }
         Relationships: [
@@ -1733,6 +1748,30 @@ export type Database = {
           p_power_on_threshold_w?: number
           p_state_controller_activated_on: string
           p_state_controller_identifier: string
+        }
+        Returns: Json
+      }
+      register_complete_client_structure_with_telemetry: {
+        Args: {
+          p_client_cnpj: string
+          p_client_legal_name: string
+          p_cold_room_category: string
+          p_cold_room_name: string
+          p_correlation_tolerance_seconds?: number
+          p_generator_identifier: string
+          p_generator_valid_from: string
+          p_location_description: string
+          p_location_name: string
+          p_location_time_zone: string
+          p_nominal_power_w: string
+          p_power_controller_activated_on: string
+          p_power_controller_device_id: string
+          p_power_controller_identifier: string
+          p_power_off_threshold_w?: number
+          p_power_on_threshold_w?: number
+          p_state_controller_activated_on: string
+          p_state_controller_identifier: string
+          p_telemetry_time_basis: string
         }
         Returns: Json
       }

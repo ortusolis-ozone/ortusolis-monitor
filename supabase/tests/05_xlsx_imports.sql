@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 
 select extensions.plan(1);
 
@@ -169,7 +170,7 @@ declare
   result jsonb;
   batch_count_before integer;
 begin
-  result := public.confirm_xlsx_import(
+  result := pg_temp.confirm_xlsx_import(
     '71000000-0000-0000-0000-000000000001',
     '73000000-0000-0000-0000-000000000001',
     '74000000-0000-0000-0000-000000000001',
@@ -197,7 +198,7 @@ begin
     raise exception 'a consulta de fingerprints existentes não retornou os eventos';
   end if;
 
-  result := public.confirm_xlsx_import(
+  result := pg_temp.confirm_xlsx_import(
     '71000000-0000-0000-0000-000000000001',
     '73000000-0000-0000-0000-000000000001',
     '74000000-0000-0000-0000-000000000001',
@@ -214,7 +215,7 @@ begin
     raise exception 'a reapresentação do mesmo arquivo criou duplicatas: %', result;
   end if;
 
-  result := public.confirm_xlsx_import(
+  result := pg_temp.confirm_xlsx_import(
     '71000000-0000-0000-0000-000000000001',
     '73000000-0000-0000-0000-000000000001',
     '74000000-0000-0000-0000-000000000001',
@@ -234,7 +235,7 @@ begin
   select count(*) into batch_count_before from public.import_batches;
 
   begin
-    perform public.confirm_xlsx_import(
+    perform pg_temp.confirm_xlsx_import(
       '71000000-0000-0000-0000-000000000001',
       '73000000-0000-0000-0000-000000000001',
       '74000000-0000-0000-0000-000000000001',
@@ -267,7 +268,7 @@ begin
   end if;
 
   begin
-    perform public.confirm_xlsx_import(
+    perform pg_temp.confirm_xlsx_import(
       '71000000-0000-0000-0000-000000000001',
       '73000000-0000-0000-0000-000000000002',
       '74000000-0000-0000-0000-000000000002',
@@ -344,7 +345,7 @@ begin
   end if;
 
   begin
-    perform public.confirm_xlsx_import(
+    perform pg_temp.confirm_xlsx_import(
       '71000000-0000-0000-0000-000000000001',
       '73000000-0000-0000-0000-000000000001',
       '74000000-0000-0000-0000-000000000001',

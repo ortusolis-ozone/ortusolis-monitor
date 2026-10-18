@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 
 select extensions.plan(1);
 
@@ -250,7 +251,7 @@ begin
   where controller.generator_id = generator_id_value
     and controller.role = 'power_telemetry';
 
-  result := public.confirm_import_session(
+  result := pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -290,7 +291,7 @@ begin
   batch_count := (select count(*) from public.import_batches);
   session_count := (select count(*) from public.import_sessions);
 
-  result := public.confirm_import_session(
+  result := pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -314,7 +315,7 @@ begin
     raise exception 'a reapresentação do mesmo par não foi idempotente: %', result;
   end if;
 
-  result := public.confirm_xlsx_import(
+  result := pg_temp.confirm_xlsx_import(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -325,7 +326,7 @@ begin
     reused_state
   );
 
-  result := public.confirm_import_session(
+  result := pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -349,7 +350,7 @@ begin
 
   batch_count := (select count(*) from public.import_batches);
   begin
-    perform public.confirm_import_session(
+    perform pg_temp.confirm_import_session(
       'b1000000-0000-4000-8000-000000000001',
       'b3000000-0000-4000-8000-000000000001',
       'b4000000-0000-4000-8000-000000000001',
@@ -372,7 +373,7 @@ begin
     raise exception 'o aviso não confirmado deixou lote parcial';
   end if;
 
-  result := public.confirm_import_session(
+  result := pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -395,7 +396,7 @@ begin
 
   batch_count := (select count(*) from public.import_batches);
   begin
-    perform public.confirm_import_session(
+    perform pg_temp.confirm_import_session(
       'b1000000-0000-4000-8000-000000000001',
       'b3000000-0000-4000-8000-000000000001',
       'b4000000-0000-4000-8000-000000000001',
@@ -442,7 +443,7 @@ begin
   end if;
 
   begin
-    perform public.confirm_import_session(
+    perform pg_temp.confirm_import_session(
       'b1000000-0000-4000-8000-000000000001',
       'b3000000-0000-4000-8000-000000000001',
       'b4000000-0000-4000-8000-000000000001',
@@ -494,7 +495,7 @@ begin
     raise exception 'a falha na segunda fonte deixou a primeira confirmada';
   end if;
 
-  perform public.confirm_xlsx_import(
+  perform pg_temp.confirm_xlsx_import(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',

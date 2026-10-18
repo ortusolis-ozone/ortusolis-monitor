@@ -1,5 +1,7 @@
 "use server";
 
+import { isPowerTimezone } from "@/lib/imports/timezone";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PostgrestError } from "@supabase/supabase-js";
@@ -52,12 +54,7 @@ function isValidDate(value: string) {
 }
 
 function isValidTimeZone(value: string) {
-  try {
-    new Intl.DateTimeFormat("pt-BR", { timeZone: value }).format();
-    return true;
-  } catch {
-    return false;
-  }
+  return isPowerTimezone(value);
 }
 
 function success(message: string): OperationalActionState {
@@ -206,6 +203,8 @@ export async function createCompleteClientStructureAction(
 
   const clientLegalName = formText(formData, "client_legal_name");
   const clientCnpj = normalizeCnpj(formText(formData, "client_cnpj"));
+  const telemetryTimeBasis = formText(formData, "telemetry_time_basis");
+  if (!["utc", "location"].includes(telemetryTimeBasis)) return fieldError("telemetry_time_basis", "Selecione o horário dos arquivos de telemetria.");
   const locationName = formText(formData, "location_name");
   const locationDescription = formText(formData, "location_description");
   const locationTimeZone =
@@ -347,13 +346,14 @@ export async function createCompleteClientStructureAction(
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(
-    "register_complete_client_structure_with_power_profile",
+    "register_complete_client_structure_with_telemetry",
     {
       p_client_legal_name: clientLegalName,
       p_client_cnpj: clientCnpj,
       p_location_name: locationName,
       p_location_description: locationDescription,
       p_location_time_zone: locationTimeZone,
+      p_telemetry_time_basis: telemetryTimeBasis,
       p_cold_room_name: coldRoomName,
       p_cold_room_category: coldRoomCategory,
       p_generator_identifier: generatorIdentifier,
@@ -456,6 +456,8 @@ export async function createLocationAction(
   const description = formText(formData, "description");
   const timeZone = formText(formData, "time_zone") || "America/Fortaleza";
   const invalidClient = validateId(clientId, "client_id");
+  const telemetryTimeBasis = formText(formData, "telemetry_time_basis");
+  if (!["utc", "location"].includes(telemetryTimeBasis)) return fieldError("telemetry_time_basis", "Selecione o horário dos arquivos de telemetria.");
 
   if (invalidClient) return invalidClient;
   if (!name) return fieldError("name", "Informe o nome da unidade.");
@@ -480,6 +482,7 @@ export async function createLocationAction(
     name,
     description: description || null,
     time_zone: timeZone,
+    telemetry_time_basis: telemetryTimeBasis,
   });
 
   return error
@@ -496,6 +499,8 @@ export async function editLocationAction(
   const name = formText(formData, "name");
   const description = formText(formData, "description");
   const timeZone = formText(formData, "time_zone");
+  const telemetryTimeBasis = formText(formData, "telemetry_time_basis");
+  if (telemetryTimeBasis && !["utc", "location"].includes(telemetryTimeBasis)) return fieldError("telemetry_time_basis", "Selecione UTC ou Horário da unidade.");
   const invalidId = validateId(id);
 
   if (invalidId) return invalidId;
@@ -507,7 +512,7 @@ export async function editLocationAction(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("locations")
-    .update({ name, description: description || null, time_zone: timeZone })
+    .update({ name, description: description || null, time_zone: timeZone, telemetry_time_basis: telemetryTimeBasis || null })
     .eq("id", id)
     .select("id")
     .maybeSingle();

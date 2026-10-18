@@ -80,7 +80,7 @@ export async function getImportPageData(): Promise<{
       .order("legal_name"),
     supabase
       .from("locations")
-      .select("id, client_id, name, time_zone, is_active")
+      .select("id, client_id, name, time_zone, telemetry_time_basis, telemetry_revision, time_zone_revision, is_active")
       .order("name"),
     supabase
       .from("cold_rooms")
@@ -118,7 +118,7 @@ export async function getImportPageData(): Promise<{
     supabase
       .from("import_sessions")
       .select(
-        "id, status, coverage_status, coverage_warning_acknowledged, error_message, created_at, confirmed_at, state_period_start, state_period_end, power_period_start, power_period_end, intersection_start, intersection_end, client_id, location_id, cold_room_id, generator_id, state_controller_id, power_controller_id, state_batch_id, power_batch_id, created_by, failed_state_file_name, failed_power_file_name",
+        "id, temporal_context, status, coverage_status, coverage_warning_acknowledged, error_message, created_at, confirmed_at, state_period_start, state_period_end, power_period_start, power_period_end, intersection_start, intersection_end, client_id, location_id, cold_room_id, generator_id, state_controller_id, power_controller_id, state_batch_id, power_batch_id, created_by, failed_state_file_name, failed_power_file_name",
       )
       .order("created_at", { ascending: false })
       .limit(12),
@@ -327,6 +327,9 @@ export async function getImportPageData(): Promise<{
         clientId: location.client_id,
         name: location.name,
         timeZone: location.time_zone,
+        telemetryTimeBasis: location.telemetry_time_basis as "utc" | "location" | null,
+        telemetryRevision: location.telemetry_revision,
+        timeZoneRevision: location.time_zone_revision,
       })),
       coldRooms: activeRooms.map((room) => ({
         id: room.id,
@@ -374,6 +377,7 @@ export async function getImportPageData(): Promise<{
       }];
     }),
     recentSessions: sessions.map((session) => ({
+      temporalSnapshot: session.temporal_context as import("./timezone").TemporalSnapshot | null,
       id: session.id,
       status: sessionStatus(session.status),
       coverageStatus: coverageStatus(session.coverage_status),

@@ -12,16 +12,17 @@ import { NOMINAL_PROFILE_REQUIRED_MESSAGE } from "./operational-summary";
 
 const id = "f5000000-0000-4000-8000-000000000001";
 const context = { clientId: id, locationId: id, coldRoomId: id, generatorId: id };
+const temporal = { locationId: id, locationTimeZone: "America/Fortaleza", timeZoneRevision: 0, telemetryRevision: 0, telemetryTimeBasis: "utc" as const, sourceTimezone: "UTC", origin: "location_default" as const };
 const request: ImportSessionConfirmationRequest = {
   context, coverageWarningAcknowledged: true,
-  state: { context: { ...context, controllerId: id }, objectPath: `${id}/${id}.xlsx`, fileName: "state.xlsx", expectedFileSha256: "a".repeat(64) },
-  power: { context: { ...context, controllerId: id }, objectPath: `${id}/f5000000-0000-4000-8000-000000000002.xlsx`, fileName: "power.xlsx", expectedFileSha256: "b".repeat(64), sourceTimezone: "UTC", expectedSourceTimezone: "UTC" },
+  state: { context: { ...context, controllerId: id }, objectPath: `${id}/${id}.xlsx`, fileName: "state.xlsx", expectedTemporalSnapshot: { ...temporal, origin: "state", sourceTimezone: "America/Fortaleza" }, expectedFileSha256: "a".repeat(64) },
+  power: { context: { ...context, controllerId: id }, objectPath: `${id}/f5000000-0000-4000-8000-000000000002.xlsx`, fileName: "power.xlsx", timezoneChoice: { mode: "location_default" }, expectedTemporalSnapshot: temporal, expectedFileSha256: "b".repeat(64), sourceTimezone: "UTC", expectedSourceTimezone: "UTC" },
 };
 const summary = { within_expected: 1, below_expected: 1, not_evaluable: 1, not_configured: 0, groups: [], profiles: [] };
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.requireMaster.mockResolvedValue({ id });
-  mocks.context.mockResolvedValue({ timeZone: "America/Fortaleza" });
+  mocks.context.mockImplementation(async (_db, ctx) => ({ ...ctx, timeZone: "America/Fortaleza", telemetryTimeBasis: "utc", telemetryRevision: 0, timeZoneRevision: 0, controllerRole: mocks.context.mock.calls.length % 2 ? "state" : "power_telemetry" }));
   mocks.createClient.mockResolvedValue({
     rpc: mocks.rpc,
     storage: { from: () => ({ download: async () => ({ data: new Blob(["xlsx"]), error: null }), remove: mocks.remove }) },
@@ -60,14 +61,14 @@ test("authorization occurs before upload access", async () => {
   expect(mocks.createClient).not.toHaveBeenCalled();
 });
 test("changed source timezone requires a new preview before confirming", async () => {
-  const changed = { ...request, power: { ...request.power, sourceTimezone: "America/Fortaleza" } };
+  const changed = { ...request, power: { ...request.power, timezoneChoice: { mode: "file_override" as const, sourceTimezone: "America/Fortaleza" } } };
   expect((await confirmImportSession(changed)).status).toBe("error");
   expect(mocks.rpc).not.toHaveBeenCalled();
 });
 test.each([undefined, "Europe/Paris"])("rejects missing or invalid timezone before download: %s", async sourceTimezone => {
-  mocks.context.mockResolvedValueOnce({ timeZone: "America/Fortaleza", controllerRole: "state" })
-    .mockResolvedValueOnce({ timeZone: "America/Fortaleza", controllerRole: "power_telemetry" });
-  expect((await previewImportSession({ ...request, power: { ...request.power, sourceTimezone } })).status).toBe("error");
+  mocks.context.mockResolvedValueOnce({ locationId: id, telemetryTimeBasis: "utc", timeZone: "America/Fortaleza", controllerRole: "state" })
+    .mockResolvedValueOnce({ locationId: id, telemetryTimeBasis: "utc", timeZone: "America/Fortaleza", controllerRole: "power_telemetry" });
+  expect((await previewImportSession({ ...request, power: { ...request.power, timezoneChoice: { mode: "file_override", sourceTimezone: sourceTimezone as string } } })).status).toBe("error");
   expect(mocks.rpc).not.toHaveBeenCalled();
 });
 test("mismatched hierarchy is rejected before parsing", async () => {
@@ -104,4 +105,33 @@ test("failure persistence and logs exclude raw database content", async () => {
   expect(JSON.stringify(logger.mock.calls)).not.toMatch(/SECRET|PRIVATE/);
   expect(logger).toHaveBeenCalledWith("Falha operacional", { operation: "session_processing", code: "23514" });
   logger.mockRestore();
+});
+
+test.each(["location_default", "file_override"] as const)("rejects a changed configuration revision in %s mode", async mode => {
+  const changed = { ...request, power: { ...request.power,
+    timezoneChoice: mode === "location_default" ? { mode } : { mode, sourceTimezone: "UTC" },
+    expectedTemporalSnapshot: { ...temporal, origin: mode, telemetryRevision: 2 },
+  } };
+  expect((await confirmImportSession(changed)).status).toBe("error");
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
+test("rejects legacy requests without the choice contract", async () => {
+  expect((await previewImportSession({ ...request, power: { ...request.power, timezoneChoice: undefined } })).status).toBe("error");
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
+test("sends the server-resolved temporal snapshot with every row", async () => {
+  await previewImportSession({ ...request, power: { ...request.power, sourceTimezone: "America/Fortaleza" } });
+  expect(mocks.rpc.mock.calls[0][1].p_power_readings[0].temporal_context).toEqual(temporal);
+  expect(mocks.parse.mock.calls[1][4]).toBe("UTC");
+});
+test("requires initial local configuration even with a file override", async () => {
+  mocks.context.mockResolvedValue({ locationId: id, timeZone: "America/Fortaleza", controllerRole: "power_telemetry", telemetryTimeBasis: null });
+  expect((await previewImportSession(request))).toMatchObject({ status: "error", message: expect.stringContaining("cadastro do local") });
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
+test("an ABA revision change of the location timezone invalidates the state preview", async () => {
+  expect((await confirmImportSession({ ...request, state: { ...request.state,
+    expectedTemporalSnapshot: { ...request.state.expectedTemporalSnapshot!, timeZoneRevision: 2 },
+  } })).status).toBe("error");
+  expect(mocks.rpc).not.toHaveBeenCalled();
 });

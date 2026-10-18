@@ -221,7 +221,15 @@ function zonedDateTimeToIso(parts: DateParts, timeZone: string) {
   }
 
   // Reject ambiguous wall clocks instead of silently choosing a DST occurrence.
-  const ambiguous = [-3600000, 3600000].some(offset =>
+  // Cover non-hour transitions as well (e.g. Lord Howe's thirty minutes).
+  // Existing UTC/Fortaleza interpretation and fingerprints remain unchanged.
+  const offsets = new Set<number>();
+  for (const hours of [-48, -24, -6, 6, 24, 48]) {
+    const instant = candidate + hours * 3600000;
+    const local = partsAtInstant(instant, timeZone);
+    offsets.add(Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second, local.millisecond) - instant);
+  }
+  const ambiguous = [...offsets].map(offset => wallTimestamp - offset - candidate).filter(Boolean).some(offset =>
     sameDateParts(partsAtInstant(candidate + offset, timeZone), parts));
   return !ambiguous && sameDateParts(partsAtInstant(candidate, timeZone), parts)
     ? new Date(candidate).toISOString()
@@ -525,7 +533,7 @@ export async function parseImportWorkbook(
 
   const indexes = selected.indexes;
   if (!isPowerTimezone(sourceTimezone)) {
-    throw new ImportValidationError("Selecione o fuso horário do arquivo de potência: UTC ou America/Fortaleza.");
+    throw new ImportValidationError("Informe um fuso IANA suportado para o arquivo de potência.");
   }
   const eventTimeIndex = indexes.get("event time")!;
   const deviceNameIndex = indexes.get("device name")!;

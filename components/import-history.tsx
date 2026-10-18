@@ -61,7 +61,7 @@ function SessionBatchDetails({
         {title}: {batch.fileName}
       </summary>
       <p>{batch.controllerName}</p>
-      {batch.sourceTimezone ? <p>Fuso do arquivo: {batch.sourceTimezone}{batch.normalizationVersion === 0 ? " · interpretação anterior do sistema" : " · fuso informado na importação"}.</p> : null}
+      {batch.sourceTimezone ? <p>Fuso do arquivo: {batch.sourceTimezone}{batch.normalizationVersion === 0 ? " · interpretação anterior do sistema" : ""}.</p> : null}
       <p>
         {formatDateTime(batch.periodStart)} — {formatDateTime(batch.periodEnd)}
       </p>
@@ -132,6 +132,9 @@ export function ImportHistory({
                           fallbackFileName={session.failedPowerFileName}
                           title="Potência"
                         />
+                        <p>{session.temporalSnapshot
+                          ? `${session.temporalSnapshot.origin === "location_default" ? "Configuração do local" : "Alteração para este arquivo"} · ${session.temporalSnapshot.sourceTimezone}`
+                          : "Procedência temporal não registrada (legado)"}</p>
                       </div>
                     </td>
                     <td>

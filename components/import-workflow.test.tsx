@@ -18,15 +18,16 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(window, "confirm").mockReturnValue(true);
   mocks.preview.mockResolvedValue({ status: "preview", preview: summary });
-  mocks.filePreview.mockImplementation(async ({ expectedDataKind, sourceTimezone }) => ({ status: "preview", preview: {
-    sourceTimezone,
+  mocks.filePreview.mockImplementation(async ({ expectedDataKind, timezoneChoice }) => ({ status: "preview", preview: {
+    sourceTimezone: timezoneChoice?.sourceTimezone ?? "UTC",
+    temporalSnapshot: { locationId: "l", locationTimeZone: "America/Fortaleza", timeZoneRevision: 0, telemetryRevision: 0, telemetryTimeBasis: "utc", sourceTimezone: timezoneChoice?.sourceTimezone ?? "UTC", origin: expectedDataKind === "state_events" ? "state" : timezoneChoice.mode },
     dataKind: expectedDataKind, fileName: "test.xlsx", fileSha256: "a".repeat(64), timeZone: "America/Fortaleza", totalRows: 2, existingDuplicateRows: 0, repeatedFileRows: 0, unknownSourceRows: 0, periodStart: "2026-08-01T00:00:00Z", periodEnd: "2026-08-03T00:00:00Z", alreadyImported: false, sample: [], minPowerW: 0, maxPowerW: 70, onRows: 1, offRows: 1, hysteresisRows: 0,
   } }));
 });
 afterEach(cleanup);
 async function ready() {
   render(<ImportWorkflow profileId="master" latestSources={[]} options={{
-    clients: [{ id: "c", legalName: "Cliente" }], locations: [{ id: "l", clientId: "c", name: "Unidade", timeZone: "America/Fortaleza" }],
+    clients: [{ id: "c", legalName: "Cliente" }], locations: [{ id: "l", clientId: "c", name: "Unidade", timeZone: "America/Fortaleza", telemetryTimeBasis: "utc", telemetryRevision: 0, timeZoneRevision: 0 }],
     coldRooms: [{ id: "r", clientId: "c", locationId: "l", name: "Câmara" }], generators: [{ id: "g", clientId: "c", locationId: "l", coldRoomId: "r", identifier: "Gerador" }],
     controllers: [ { id: "s", clientId: "c", generatorId: "g", identifier: "Estado", role: "state", isActive: true, activatedAt: "2026-01-01", deactivatedAt: null }, { id: "p", clientId: "c", generatorId: "g", identifier: "Potência", role: "power_telemetry", isActive: true, activatedAt: "2026-01-01", deactivatedAt: null } ],
   }} />);
@@ -34,7 +35,6 @@ async function ready() {
     fireEvent.change(screen.getByRole("combobox", { name: label }), { target: { value } });
   }
   for (const source of ["estado", "potência"]) {
-    if (source === "potência") fireEvent.change(screen.getByRole("combobox", { name: "Fuso horário do arquivo de potência" }), { target: { value: "UTC" } });
     fireEvent.change(screen.getByLabelText(`Selecionar XLSX de ${source === "estado" ? "horários" : source}`, { exact: false }), { target: { files: [new File(["xlsx"], "test.xlsx")] } });
     fireEvent.click(screen.getByRole("button", { name: `Validar arquivo de ${source}` }));
     await waitFor(() => expect(screen.getByRole("button", { name: `Validar arquivo de ${source}` }).hasAttribute("disabled")).toBe(false));
@@ -43,16 +43,17 @@ async function ready() {
 function confirmation() { return screen.getByRole("button", { name: /Confirmar atualização/ }); }
 test("changing timezone preserves state preview and file but invalidates power and joint projection", async () => {
   await ready();
-  expect(mocks.filePreview.mock.calls[1][0].sourceTimezone).toBe("UTC");
+  expect(mocks.filePreview.mock.calls[1][0].timezoneChoice).toEqual({ mode: "location_default" });
   fireEvent.click(screen.getByRole("button", { name: "Projetar avaliação operacional" }));
   await waitFor(() => expect(confirmation().hasAttribute("disabled")).toBe(false));
+  fireEvent.click(screen.getByRole("button", { name: "Alterar para este arquivo" }));
   fireEvent.change(screen.getByRole("combobox", { name: "Fuso horário do arquivo de potência" }), {target:{value:"America/Fortaleza"}});
   expect(screen.getByLabelText("Prévia do arquivo de estado")).toBeTruthy();
   expect(screen.queryByLabelText("Prévia do arquivo de potência")).toBeNull();
   expect(confirmation().hasAttribute("disabled")).toBe(true);
   fireEvent.click(screen.getByRole("button", {name:"Validar arquivo de potência"}));
   await waitFor(() => expect(mocks.filePreview).toHaveBeenCalledTimes(3));
-  expect(mocks.filePreview.mock.calls[2][0].sourceTimezone).toBe("America/Fortaleza");
+  expect(mocks.filePreview.mock.calls[2][0].timezoneChoice.sourceTimezone).toBe("America/Fortaleza");
 });
 test("blocks confirmation before projection and guides missing nominal configuration", async () => {
   mocks.preview.mockResolvedValue({ status: "error", message: NOMINAL_PROFILE_REQUIRED_MESSAGE });
@@ -86,4 +87,40 @@ test("confirmation failure clears the projection and prevents reuse of stale res
   expect(confirmation().hasAttribute("disabled")).toBe(true);
   expect(screen.queryByRole("region", { name: "Avaliação operacional projetada" })).toBeNull();
   expect(mocks.refresh).not.toHaveBeenCalled();
+});
+
+test("override with the same timezone requires validation and does not persist to a replacement file", async () => {
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: "Alterar para este arquivo" }));
+  expect(screen.queryByLabelText("Prévia do arquivo de potência")).toBeNull();
+  expect(screen.getByLabelText("Prévia do arquivo de estado")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Validar arquivo de potência" }));
+  await waitFor(() => expect(mocks.filePreview).toHaveBeenCalledTimes(3));
+  expect(mocks.filePreview.mock.calls[2][0].timezoneChoice).toEqual({ mode: "file_override", sourceTimezone: "UTC" });
+  fireEvent.change(screen.getByLabelText("Selecionar XLSX de potência", { exact: false }), { target: { files: [new File(["new"], "other.xlsx")] } });
+  expect(screen.queryByRole("combobox", { name: "Fuso horário do arquivo de potência" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Alterar para este arquivo" })).toBeTruthy();
+});
+test("returning to the local default clears the override and invalidates power", async () => {
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: "Alterar para este arquivo" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Fuso horário do arquivo de potência" }), { target: { value: "America/Fortaleza" } });
+  fireEvent.click(screen.getByRole("button", { name: "Usar configuração do local" }));
+  fireEvent.click(screen.getByRole("button", { name: "Validar arquivo de potência" }));
+  await waitFor(() => expect(mocks.filePreview).toHaveBeenCalledTimes(3));
+  expect(mocks.filePreview.mock.calls[2][0].timezoneChoice).toEqual({ mode: "location_default" });
+});
+
+
+test("a new provenance session reports zero inserts when both batches were reused", async () => {
+  await ready();
+  mocks.confirm.mockResolvedValue({ status: "confirmed", confirmation: {
+    operationalSummary: summary, alreadyConfirmed: false,
+    stateBatch: { alreadyConfirmed: true, insertedRows: 2 },
+    powerBatch: { alreadyConfirmed: true, insertedRows: 3 },
+  } });
+  fireEvent.click(screen.getByRole("button", { name: "Projetar avaliação operacional" }));
+  await waitFor(() => expect(confirmation().hasAttribute("disabled")).toBe(false));
+  fireEvent.click(confirmation());
+  expect(await screen.findByText("Atualização confirmada: 0 evento(s) de estado e 0 leitura(s) de potência inseridos.")).toBeTruthy();
 });

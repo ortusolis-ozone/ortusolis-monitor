@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 select extensions.plan(1);
 
 insert into public.clients (id, legal_name, cnpj)
@@ -73,7 +74,7 @@ begin
     ('07:10', 'turn_off', 'Dispositivo-Inching', 'programmed', '5')
   ) v(stamp, operation, source, classification, hash);
 
-  perform public.confirm_xlsx_import(
+  perform pg_temp.confirm_xlsx_import(
     'd4100000-0000-4000-8000-000000000001', 'd4300000-0000-4000-8000-000000000001', 'd4400000-0000-4000-8000-000000000001',
     g, s, 'programado.xlsx', repeat('a', 64), states);
   if jsonb_array_length(pg_temp.application_snapshot(g)) <> 1 then
@@ -116,7 +117,7 @@ begin
     'source_original', 'ortusolis@ortusolis.com.br', 'source_normalized', 'ortusolis@ortusolis.com.br',
     'source_classification', 'manual', 'fingerprint', repeat(v.hash, 64)) order by v.stamp)
   into manual_states from (values ('19:00', 'turn_on', '6'), ('19:10', 'turn_off', '7')) v(stamp, operation, hash);
-  result := public.confirm_xlsx_import(
+  result := pg_temp.confirm_xlsx_import(
     'd4100000-0000-4000-8000-000000000001', 'd4300000-0000-4000-8000-000000000001', 'd4400000-0000-4000-8000-000000000001',
     manual_g, manual_s, 'manual.xlsx', repeat('b', 64), manual_states);
   if (result->>'inserted_rows')::int <> 2
@@ -125,7 +126,7 @@ begin
     or not exists (select 1 from public.client_daily_status where generator_id = manual_g and status_date = '2026-10-08' and status = 'no_data') then
     raise exception 'manual-only import produced a programmed result or a pending inconsistency';
   end if;
-  result := public.confirm_xlsx_import(
+  result := pg_temp.confirm_xlsx_import(
     'd4100000-0000-4000-8000-000000000001', 'd4300000-0000-4000-8000-000000000001', 'd4400000-0000-4000-8000-000000000001',
     g, s, 'programado.xlsx', repeat('a', 64), states);
   if not (result->>'already_confirmed')::boolean or (select count(*) from public.raw_events where generator_id = g) <> 5 then

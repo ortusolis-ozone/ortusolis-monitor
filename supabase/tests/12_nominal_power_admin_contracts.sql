@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 select extensions.plan(1);
 
 insert into public.clients (id, legal_name, cnpj) values

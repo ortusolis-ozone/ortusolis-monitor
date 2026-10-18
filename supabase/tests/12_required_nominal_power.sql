@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 select extensions.plan(1);
 
 insert into auth.users (id) values ('f9000000-0000-4000-8000-000000000001');

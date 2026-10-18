@@ -1,3 +1,5 @@
+import type { TemporalSnapshot, TimezoneChoice } from "./timezone";
+
 export type ImportHierarchyContext = {
   clientId: string;
   locationId: string;
@@ -13,6 +15,7 @@ export type ImportDataKind = "state_events" | "power_readings";
 
 export type ImportUploadRequest = {
   sourceTimezone?: string;
+  timezoneChoice?: TimezoneChoice;
   objectPath: string;
   fileName: string;
   context: ImportContext;
@@ -22,6 +25,7 @@ export type ImportUploadRequest = {
 export type ImportConfirmationRequest = ImportUploadRequest & {
   expectedFileSha256: string;
   expectedSourceTimezone?: string;
+  expectedTemporalSnapshot?: TemporalSnapshot;
 };
 
 export type ImportClientOption = {
@@ -34,6 +38,9 @@ export type ImportLocationOption = {
   clientId: string;
   name: string;
   timeZone: string;
+  telemetryTimeBasis: "utc" | "location" | null;
+  telemetryRevision: number;
+  timeZoneRevision: number;
 };
 
 export type ImportColdRoomOption = {
@@ -92,6 +99,7 @@ export type PowerImportPreviewRow = {
 };
 
 type ImportPreviewBase = {
+  temporalSnapshot: TemporalSnapshot;
   fileName: string;
   fileSha256: string;
   sheetName: string;
@@ -227,6 +235,7 @@ export type ImportSessionBatchSummary = {
 };
 
 export type ImportSessionListItem = {
+  temporalSnapshot: TemporalSnapshot | null;
   id: string;
   status: "confirmed" | "failed";
   coverageStatus: ImportCoverageStatus;
@@ -308,6 +317,9 @@ export type ParsedPowerReading = {
 };
 
 export type ValidatedImportContext = ImportContext & {
+  telemetryTimeBasis?: "utc" | "location" | null;
+  telemetryRevision?: number;
+  timeZoneRevision?: number;
   timeZone: string;
   controllerActivatedAt: string;
   controllerDeactivatedAt: string | null;

@@ -32,6 +32,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 12 | [Potência nominal e alerta de redução operacional](./12-potencia-nominal-e-alerta-de-reducao-operacional.md) | Mínimo automático de 85%, diagnóstico técnico e alerta qualitativo | Não se aplica | Concluída; validada localmente |
 | 13 | [Normalização do fuso horário da telemetria](./13-normalizacao-de-fuso-horario-da-telemetria.md) | Fuso explícito, correlação normalizada e correção auditável de leituras | Não se aplica | Concluída; migration em produção; deploy pendente |
 | 14 | [Mapeamento de origens e comandos manuais](./14-mapeamento-de-origens-e-comandos-manuais.md) | Origens explicadas, comandos manuais identificados e histórico reclassificado | Não se aplica | Implementada; validada localmente; publicação pendente |
+| 15 | [Fuso da telemetria por local](./15-fuso-da-telemetria-por-local.md) | Preferência temporal por local, herança na importação e exceção por arquivo com correção UTC preservada | Não se aplica | Implementada; validada localmente; publicação pendente |
 
 ## Marcos
 
@@ -51,3 +52,5 @@ A spec 10 é uma evolução do domínio já implementado. Nos pontos de controla
 A spec 11 evolui apenas a experiência de importação definida nas specs 05 e 10. Ela agrupa os dois lotes em uma sessão administrativa, sem substituir os formatos, a correlação temporal ou a publicação sanitizada da spec 10.
 
 A spec 12 adiciona potência nominal versionada ao gerador e avalia a leitura de início correlacionada pela spec 10. Ela mantém a aplicação como estado principal, calcula automaticamente o mínimo de 85% e expõe ao cliente somente um alerta qualitativo quando houver redução abaixo do esperado.
+
+A spec 15 evolui a escolha temporal da spec 13: permite cadastrar a referência dos arquivos de telemetria por local e herdá-la na importação, com exceção por arquivo. Preserva a normalização UTC, a idempotência e a correção auditável por reimportação.

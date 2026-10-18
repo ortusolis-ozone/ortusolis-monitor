@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 
 select extensions.plan(1);
 
@@ -94,7 +95,7 @@ begin
   exception when check_violation or exclusion_violation then null;
   end;
 
-  confirmation := public.confirm_xlsx_import(
+  confirmation := pg_temp.confirm_xlsx_import(
     '91000000-0000-4000-8000-000000000001',
     '93000000-0000-4000-8000-000000000001',
     '94000000-0000-4000-8000-000000000001',
@@ -130,7 +131,7 @@ begin
     raise exception 'a importação de estado regrediu';
   end if;
 
-  confirmation := public.confirm_power_xlsx_import(
+  confirmation := pg_temp.confirm_power_xlsx_import(
     '91000000-0000-4000-8000-000000000001',
     '93000000-0000-4000-8000-000000000001',
     '94000000-0000-4000-8000-000000000001',
@@ -235,7 +236,7 @@ begin
     raise exception 'o reprocessamento de potência não é temporalmente idempotente';
   end if;
 
-  confirmation := public.confirm_power_xlsx_import(
+  confirmation := pg_temp.confirm_power_xlsx_import(
     '91000000-0000-4000-8000-000000000001',
     '93000000-0000-4000-8000-000000000001',
     '94000000-0000-4000-8000-000000000001',
@@ -297,7 +298,7 @@ begin
   end if;
 
   begin
-    perform public.confirm_power_xlsx_import(
+    perform pg_temp.confirm_power_xlsx_import(
       '91000000-0000-4000-8000-000000000001',
       '93000000-0000-4000-8000-000000000001',
       '94000000-0000-4000-8000-000000000001',

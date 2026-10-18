@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
 import { useMemo, useState } from "react";
-import { POWER_TIMEZONES } from "@/lib/imports/timezone";
+import { powerTimezoneOptions, type TimezoneChoice } from "@/lib/imports/timezone";
 import { useRouter } from "next/navigation";
 import { sourceClassificationLabel } from "@/lib/admin/constants";
 import { eventOperationLabel } from "@/lib/admin/format";
@@ -253,6 +255,7 @@ function PowerPreview({ preview }: { preview: ImportPreview }) {
   return (
     <div className="source-preview" aria-label="Prévia do arquivo de potência">
       <p>Fuso do arquivo: {preview.sourceTimezone}. Horários exibidos em {preview.timeZone}.</p>
+      <p>{preview.temporalSnapshot.origin === "location_default" ? "Configuração do local" : "Alteração somente para este arquivo"}.</p>
       <p>Período original: {preview.rawPeriodStart} — {preview.rawPeriodEnd}.</p>
       <dl className="source-preview-summary">
         <div>
@@ -337,7 +340,7 @@ export function ImportWorkflow({
   const [selection, setSelection] = useState<Selection>(emptySelection);
   const [stateSlot, setStateSlot] = useState<SourceSlot>(emptySourceSlot);
   const [powerSlot, setPowerSlot] = useState<SourceSlot>(emptySourceSlot);
-  const [powerTimezone, setPowerTimezone] = useState("");
+  const [timezoneChoice, setTimezoneChoice] = useState<TimezoneChoice>({ mode: "location_default" });
   const [coverageAcknowledged, setCoverageAcknowledged] = useState(false);
   const [operationalPreview, setOperationalPreview] = useState<ImportOperationalSummary | null>(null);
   const [projecting, setProjecting] = useState(false);
@@ -392,17 +395,20 @@ export function ImportWorkflow({
   const powerControllers = controllers.filter(
     (controller) => controller.role === "power_telemetry",
   );
-  const selectedTimeZone = options.locations.find(
-    (location) => location.id === selection.locationId,
-  )?.timeZone;
+  const selectedLocation = options.locations.find(location => location.id === selection.locationId);
+  const selectedTimeZone = selectedLocation?.timeZone;
+  const powerTimezone = timezoneChoice.mode === "file_override" ? timezoneChoice.sourceTimezone
+    : selectedLocation?.telemetryTimeBasis === "utc" ? "UTC"
+    : selectedLocation?.telemetryTimeBasis === "location" ? selectedTimeZone ?? "" : "";
+  const availablePowerTimezones = powerTimezoneOptions(selectedTimeZone ?? "");
   const contextComplete = Object.values(selection).every(Boolean);
   const anyBusy = stateSlot.validating || powerSlot.validating || confirming || projecting;
   const stateFileStatus = sourceStatus(stateSlot);
   const powerFileStatus = sourceStatus(powerSlot);
   const statePreview =
-    stateSlot.preview?.dataKind === "state_events" ? stateSlot.preview : null;
+    stateSlot.preview?.dataKind === "state_events" && stateSlot.preview.temporalSnapshot?.timeZoneRevision === selectedLocation?.timeZoneRevision ? stateSlot.preview : null;
   const powerPreview =
-    powerSlot.preview?.dataKind === "power_readings" ? powerSlot.preview : null;
+    powerSlot.preview?.dataKind === "power_readings" && powerSlot.preview.temporalSnapshot?.telemetryRevision === selectedLocation?.telemetryRevision ? powerSlot.preview : null;
   const coverage =
     statePreview && powerPreview
       ? compareImportPeriods(
@@ -456,6 +462,7 @@ export function ImportWorkflow({
   }
 
   function replaceSelection(next: Selection) {
+    setTimezoneChoice({ mode: "location_default" });
     setSelection(next);
     setStateSlot((current) => invalidateSlot(current));
     setPowerSlot((current) => invalidateSlot(current));
@@ -463,6 +470,7 @@ export function ImportWorkflow({
   }
 
   function selectGenerator(generatorId: string) {
+    setTimezoneChoice({ mode: "location_default" });
     const availableControllers = options.controllers.filter(
       (controller) =>
         controller.clientId === selection.clientId &&
@@ -489,6 +497,8 @@ export function ImportWorkflow({
   }
 
   function updateSourceController(source: SourceKey, controllerId: string) {
+    setTimezoneChoice({ mode: "location_default" });
+    setPowerSlot(current => invalidateSlot(current));
     const update = (current: SourceSlot) => ({
       ...invalidateSlot(current),
       controllerId,
@@ -511,6 +521,7 @@ export function ImportWorkflow({
   }
 
   function selectFile(source: SourceKey, file: File | null) {
+    if (source === "power") setTimezoneChoice({ mode: "location_default" });
     const update = (current: SourceSlot): SourceSlot => ({
       ...current,
       file,
@@ -565,8 +576,8 @@ export function ImportWorkflow({
       return;
     }
 
-    if (source === "power" && !powerTimezone) {
-      setPowerSlot(current => ({ ...current, error: "Selecione o fuso horário do arquivo de potência." }));
+    if (source === "power" && !selectedLocation?.telemetryTimeBasis) {
+      setPowerSlot(current => ({ ...current, error: "Configure o horário dos arquivos de telemetria no cadastro do local." }));
       return;
     }
 
@@ -587,7 +598,7 @@ export function ImportWorkflow({
         fileName: slot.file.name,
         context: importContext(slot.controllerId),
         expectedDataKind,
-        ...(source === "power" ? { sourceTimezone: powerTimezone } : {}),
+        ...(source === "power" ? { timezoneChoice } : {}),
       });
 
       if (response.status !== "preview") {
@@ -602,6 +613,12 @@ export function ImportWorkflow({
         return;
       }
 
+      // A configuration edit in another tab may have happened since page load.
+      // Refresh the options so a newly validated snapshot is usable immediately.
+      if (response.preview.temporalSnapshot.timeZoneRevision !== selectedLocation?.timeZoneRevision ||
+          response.preview.temporalSnapshot.telemetryRevision !== selectedLocation?.telemetryRevision) {
+        router.refresh();
+      }
       setSlot((current) => ({
         ...current,
         preview: response.preview,
@@ -677,6 +694,7 @@ export function ImportWorkflow({
           fileName: stateSlot.file.name,
           context: importContext(stateSlot.controllerId),
           expectedFileSha256: statePreview.fileSha256,
+          expectedTemporalSnapshot: statePreview.temporalSnapshot,
           expectedDataKind: "state_events",
         },
         power: {
@@ -685,7 +703,8 @@ export function ImportWorkflow({
           context: importContext(powerSlot.controllerId),
           expectedFileSha256: powerPreview.fileSha256,
           expectedDataKind: "power_readings",
-          sourceTimezone: powerTimezone,
+          timezoneChoice,
+          expectedTemporalSnapshot: powerPreview.temporalSnapshot,
           expectedSourceTimezone: powerPreview.sourceTimezone,
         },
         coverageWarningAcknowledged: coverageAcknowledged,
@@ -703,6 +722,7 @@ export function ImportWorkflow({
       }
       setOperationalPreview(response.confirmation.operationalSummary);
       setConfirmation(response.confirmation);
+      setTimezoneChoice({ mode: "location_default" });
       setStateSlot((current) => ({ ...current, confirmed: true }));
       setPowerSlot((current) => ({ ...current, confirmed: true }));
       router.refresh();
@@ -720,7 +740,9 @@ export function ImportWorkflow({
   }
 
   const confirmationDisabled =
+    confirmation !== null ||
     !operationalPreview ||
+    !statePreview || !powerPreview ||
     !coverage ||
     coverage.status === "no_intersection" ||
     (coverage.status === "partial" && !coverageAcknowledged) ||
@@ -982,19 +1004,43 @@ export function ImportWorkflow({
                   source={latestPowerSource}
                   timeZone={selectedTimeZone}
                 />
-                <label>
-                  Fuso horário do arquivo de potência
-                  <select value={powerTimezone} disabled={anyBusy} required onChange={(event) => {
-                    setPowerTimezone(event.target.value);
-                    setPowerSlot(current => invalidateSlot(current));
-                    invalidateSession();
-                  }}>
-                    <option value="">Selecione o fuso do XLSX</option>
-                    {POWER_TIMEZONES.map(zone => <option key={zone} value={zone}>{zone}</option>)}
-                  </select>
-                </label>
-                <p className="field-hint">Escolha UTC quando 23:00 no arquivo corresponder a 20:00 em Fortaleza. A prévia preserva o horário original e mostra o horário convertido.</p>
-                <p className="field-hint">Ao reimportar com outro fuso, as leituras correspondentes passam a usar o horário corrigido. O registro anterior fica preservado para auditoria.</p>
+                {selectedLocation?.telemetryTimeBasis ? (
+                  <div className="telemetry-time-setting">
+                    <p><strong>Horários da telemetria: {powerTimezone}</strong></p>
+                    <p>{timezoneChoice.mode === "location_default"
+                      ? `Configuração do local: ${selectedLocation.name}`
+                      : "Alteração somente para este arquivo"}</p>
+                    {timezoneChoice.mode === "file_override" ? (
+                      <>
+                        <label className="source-controller-select">
+                          Fuso horário do arquivo de potência
+                          <select value={powerTimezone} disabled={anyBusy} onChange={event => {
+                            setTimezoneChoice({ mode: "file_override", sourceTimezone: event.target.value });
+                            setPowerSlot(current => invalidateSlot(current));
+                            invalidateSession();
+                          }}>
+                            {availablePowerTimezones.map(zone => <option key={zone} value={zone}>{zone}</option>)}
+                          </select>
+                        </label>
+                        <button type="button" className="secondary-button" disabled={anyBusy} onClick={() => {
+                          setTimezoneChoice({ mode: "location_default" });
+                          setPowerSlot(current => invalidateSlot(current));
+                          invalidateSession();
+                        }}>Usar configuração do local</button>
+                      </>
+                    ) : (
+                      <button type="button" className="secondary-button" disabled={anyBusy} onClick={() => {
+                        setTimezoneChoice({ mode: "file_override", sourceTimezone: powerTimezone });
+                        setPowerSlot(current => invalidateSlot(current));
+                        invalidateSession();
+                      }}>Alterar para este arquivo</button>
+                    )}
+                    <p className="field-hint">A prévia preserva o horário original e mostra o horário convertido para {selectedTimeZone}. Uma alteração aqui não muda o cadastro.</p>
+                    <p className="field-hint">Reimportar com outro fuso corrige as leituras correspondentes e preserva o registro anterior para auditoria.</p>
+                  </div>
+                ) : selectedLocation ? (
+                  <p role="status">Configure o horário dos arquivos de telemetria no cadastro do local. <Link href="/admin/locais">Configurar local</Link></p>
+                ) : null}
 
                 <label className="file-picker">
                   <span>Selecionar XLSX de potência</span>
@@ -1193,9 +1239,9 @@ export function ImportWorkflow({
               <p className="form-message success" role="status">
                 {confirmation.alreadyConfirmed
                   ? "Esta mesma sessão já havia sido confirmada. Nenhum lote, evento ou leitura foi duplicado."
-                  : `Atualização confirmada: ${confirmation.stateBatch.insertedRows.toLocaleString(
+                  : `Atualização confirmada: ${(confirmation.stateBatch.alreadyConfirmed ? 0 : confirmation.stateBatch.insertedRows).toLocaleString(
                       "pt-BR",
-                    )} evento(s) de estado e ${confirmation.powerBatch.insertedRows.toLocaleString(
+                    )} evento(s) de estado e ${(confirmation.powerBatch.alreadyConfirmed ? 0 : confirmation.powerBatch.insertedRows).toLocaleString(
                       "pt-BR",
                     )} leitura(s) de potência inseridos.`}
               </p>

@@ -47,12 +47,12 @@ describe("nominal power server contracts", () => {
     mocks.rpc.mockResolvedValue({ data: { client_id: id }, error: null });
     await expect(createCompleteClientStructureAction(initial, form({
       client_legal_name: "Cliente", client_cnpj: "04252011000110",
-      location_name: "Unidade", location_time_zone: "America/Fortaleza",
+      location_name: "Unidade", telemetry_time_basis: "utc", location_time_zone: "America/Fortaleza",
       cold_room_name: "Câmara", cold_room_category: "flv",
       generator_identifier: "Gerador", generator_valid_from: "2026-07-01",
       state_controller_activated_on: "2026-07-01", power_controller_activated_on: "2026-07-01",
     }))).rejects.toThrow("NEXT_REDIRECT");
-    expect(mocks.rpc).toHaveBeenCalledWith("register_complete_client_structure_with_power_profile", expect.objectContaining({ p_nominal_power_w: "72.000" }));
+    expect(mocks.rpc).toHaveBeenCalledWith("register_complete_client_structure_with_telemetry", expect.objectContaining({ p_nominal_power_w: "72.000" }));
     expect(mocks.rpc.mock.calls[0][1]).not.toHaveProperty("p_minimum_acceptable_power_w");
   });
   test("registers once and discards browser-supplied author, minimum and hierarchy", async () => {

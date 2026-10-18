@@ -1272,6 +1272,12 @@ tbody tr:last-child td {
   padding: var(--space-5);
 }
 
+.telemetry-time-setting {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 .source-controller-select {
   display: grid;
   gap: 0.4rem;

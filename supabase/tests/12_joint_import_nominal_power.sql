@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 
 select extensions.plan(1);
 
@@ -254,7 +255,7 @@ begin
 
   audit_count := pg_temp.audit_count();
   begin
-    perform public.preview_import_session(
+    perform pg_temp.preview_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -264,7 +265,7 @@ begin
   exception when sqlstate 'P1206' then null;
   end;
   begin
-    perform public.confirm_import_session(
+    perform pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -274,7 +275,7 @@ begin
   exception when sqlstate 'P1206' then null;
   end;
   begin
-    perform public.confirm_xlsx_import(
+    perform pg_temp.confirm_xlsx_import(
       'b1000000-0000-4000-8000-000000000001', 'b3000000-0000-4000-8000-000000000001',
       'b4000000-0000-4000-8000-000000000001', generator_id_value, state_controller_id,
       'legacy.xlsx', repeat('a1',32), full_state);
@@ -291,7 +292,7 @@ begin
   insert into public.generator_power_profiles(generator_id, nominal_power_w, valid_from, created_by)
   values(generator_id_value, 100, '2026-08-27T13:00:00Z', auth.uid());
   begin
-    perform public.preview_import_session(
+    perform pg_temp.preview_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -308,7 +309,7 @@ begin
   full_state := full_state || reused_state || partial_state;
   full_power := full_power || reused_power || partial_power;
   audit_count := pg_temp.audit_count();
-  projected := public.preview_import_session(
+  projected := pg_temp.preview_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -328,7 +329,7 @@ begin
     raise exception 'preview persisted data';
   end if;
   begin
-    perform public.confirm_import_session(
+    perform pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -341,7 +342,7 @@ begin
     or pg_temp.audit_count() <> audit_count then
     raise exception 'late failure persisted partial data';
   end if;
-  result := public.confirm_import_session(
+  result := pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -353,7 +354,7 @@ begin
   batch_count := (select count(*) from public.import_batches);
   session_count := (select count(*) from public.import_sessions);
   audit_count := pg_temp.audit_count();
-  result := public.confirm_import_session(
+  result := pg_temp.confirm_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -365,7 +366,7 @@ begin
     or (select count(*) from public.inconsistencies where type = 'power_below_expected' and status <> 'resolved') <> 1 then
     raise exception 'repeat was not idempotent';
   end if;
-  result := public.preview_import_session(
+  result := pg_temp.preview_import_session(
     'b1000000-0000-4000-8000-000000000001',
     'b3000000-0000-4000-8000-000000000001',
     'b4000000-0000-4000-8000-000000000001',
@@ -390,7 +391,7 @@ set local request.jwt.claim.sub = 'b2000000-0000-4000-8000-000000000002';
 do $$
 begin
   begin
-    perform public.preview_import_session(null,null,null,null,null,null,null,'[]',null,null,null,'[]');
+    perform pg_temp.preview_import_session(null,null,null,null,null,null,null,'[]',null,null,null,'[]');
     raise exception 'viewer accessed preview';
   exception when insufficient_privilege then null;
   end;

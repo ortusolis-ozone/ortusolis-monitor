@@ -31,7 +31,7 @@ test("same file with different zone has a different reading identity and preserv
   expect(local.readings[1].fingerprint).not.toBe(utc.readings[1].fingerprint);
   expect(await parseImportWorkbook(Buffer.from("file"),context,[],"power_readings","UTC")).toEqual(utc);
 });
-test.each([undefined,"","GMT+3","Europe/Paris"])("rejects missing or unsupported source zone %s", async zone => {
+test.each([undefined,"","GMT+3","Invalid/Zone"])("rejects missing or unsupported source zone %s", async zone => {
   await expect(parseImportWorkbook(Buffer.from("file"),context,[],"power_readings",zone)).rejects.toThrow(/fuso/);
 });
 test("uses converted instants at controller activation and exclusive deactivation boundaries",async () => {
@@ -50,4 +50,11 @@ test("state file still uses the location timezone even if UTC is supplied for po
   const result=await parseImportWorkbook(Buffer.from("f"),{...context,controllerRole:"state"},[{normalized_source:"agendamento",classification:"programmed"}],"state_events","UTC");
   if(result.dataKind!=="state_events") throw new Error("wrong type");
   expect(result.events[0].occurred_at).toBe("2026-09-11T23:00:00.000Z");
+});
+
+
+test("supports the location IANA zone and rejects non-hour DST folds and gaps", () => {
+  expect(parseLocalDateTimeText("2026-10-16 20:00:00", "Europe/Paris")).toBe("2026-10-16T18:00:00.000Z");
+  expect(parseLocalDateTimeText("2026-04-05 01:45:00", "Australia/Lord_Howe")).toBeNull();
+  expect(parseLocalDateTimeText("2026-10-04 02:15:00", "Australia/Lord_Howe")).toBeNull();
 });

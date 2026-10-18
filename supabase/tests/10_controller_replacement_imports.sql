@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 
 select extensions.plan(1);
 
@@ -183,7 +184,7 @@ begin
     raise exception 'os novos controladores não assumiram o corte de vigência';
   end if;
 
-  confirmation := public.confirm_xlsx_import(
+  confirmation := pg_temp.confirm_xlsx_import(
     'a1000000-0000-4000-8000-000000000001',
     'a3000000-0000-4000-8000-000000000001',
     'a4000000-0000-4000-8000-000000000001',
@@ -199,7 +200,7 @@ begin
   end if;
 
   begin
-    perform public.confirm_xlsx_import(
+    perform pg_temp.confirm_xlsx_import(
       'a1000000-0000-4000-8000-000000000001',
       'a3000000-0000-4000-8000-000000000001',
       'a4000000-0000-4000-8000-000000000001',
@@ -213,7 +214,7 @@ begin
   exception when check_violation then null;
   end;
 
-  confirmation := public.confirm_xlsx_import(
+  confirmation := pg_temp.confirm_xlsx_import(
     'a1000000-0000-4000-8000-000000000001',
     'a3000000-0000-4000-8000-000000000001',
     'a4000000-0000-4000-8000-000000000001',
@@ -228,7 +229,7 @@ begin
     raise exception 'o novo controlador de estado não aceitou evento no corte';
   end if;
 
-  confirmation := public.confirm_power_xlsx_import(
+  confirmation := pg_temp.confirm_power_xlsx_import(
     'a1000000-0000-4000-8000-000000000001',
     'a3000000-0000-4000-8000-000000000001',
     'a4000000-0000-4000-8000-000000000001',
@@ -244,7 +245,7 @@ begin
   end if;
 
   begin
-    perform public.confirm_power_xlsx_import(
+    perform pg_temp.confirm_power_xlsx_import(
       'a1000000-0000-4000-8000-000000000001',
       'a3000000-0000-4000-8000-000000000001',
       'a4000000-0000-4000-8000-000000000001',
@@ -258,7 +259,7 @@ begin
   exception when check_violation then null;
   end;
 
-  confirmation := public.confirm_power_xlsx_import(
+  confirmation := pg_temp.confirm_power_xlsx_import(
     'a1000000-0000-4000-8000-000000000001',
     'a3000000-0000-4000-8000-000000000001',
     'a4000000-0000-4000-8000-000000000001',

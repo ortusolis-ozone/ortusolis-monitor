@@ -1,4 +1,5 @@
 begin;
+\ir helpers/temporal-fixtures.sql
 
 select extensions.plan(1);
 
@@ -39,10 +40,10 @@ create function pg_temp.confirm_zone(g uuid, s uuid, p uuid, e jsonb, r jsonb, p
 returns jsonb language plpgsql as $$
 begin
   if preview then
-    return public.preview_import_session('b1000000-0000-4000-8000-000000000001', 'b3000000-0000-4000-8000-000000000001', 'b4000000-0000-4000-8000-000000000001',
+    return pg_temp.preview_import_session('b1000000-0000-4000-8000-000000000001', 'b3000000-0000-4000-8000-000000000001', 'b4000000-0000-4000-8000-000000000001',
       g,s,'estado.xlsx',repeat('a',64),e,p,'potencia.xlsx',repeat('b',64),r);
   end if;
-  return public.confirm_import_session('b1000000-0000-4000-8000-000000000001', 'b3000000-0000-4000-8000-000000000001', 'b4000000-0000-4000-8000-000000000001',
+  return pg_temp.confirm_import_session('b1000000-0000-4000-8000-000000000001', 'b3000000-0000-4000-8000-000000000001', 'b4000000-0000-4000-8000-000000000001',
     g,s,'estado.xlsx',repeat('a',64),e,p,'potencia.xlsx',repeat('b',64),r,true);
 end;
 $$;
@@ -106,10 +107,10 @@ begin
   begin
     perform pg_temp.confirm_zone(g,s,p,states,jsonb_set(corrected,'{1,source_timezone}','"America/Fortaleza"'));
     raise exception 'mixed zones accepted';
-  exception when check_violation then null; end;
+  exception when sqlstate 'P1501' then null; end;
   if (select count(*) from public.audit_logs where action='power_timezone_corrected') <> 1 then raise exception 'incorrect audit count'; end if;
   -- A differently named/exported overlapping file deduplicates by reading identity.
-  result := public.confirm_power_xlsx_import('b1000000-0000-4000-8000-000000000001','b3000000-0000-4000-8000-000000000001','b4000000-0000-4000-8000-000000000001',
+  result := pg_temp.confirm_power_xlsx_import('b1000000-0000-4000-8000-000000000001','b3000000-0000-4000-8000-000000000001','b4000000-0000-4000-8000-000000000001',
     g,p,'sobreposto.xlsx',repeat('c',64),jsonb_build_array(corrected->1,corrected->2));
   if (result->>'inserted_rows')::int <> 0 or (result->>'duplicate_rows')::int <> 2
     or (select count(*) from private.effective_power_readings) <> 3 then raise exception 'overlap duplicated readings'; end if;
@@ -124,7 +125,7 @@ set local role authenticated;
 set local request.jwt.claim.sub = 'b2000000-0000-4000-8000-000000000002';
 do $$ begin
   begin
-    perform public.confirm_power_xlsx_import(null,null,null,null,null,'x',repeat('c',64),'[]');
+    perform pg_temp.confirm_power_xlsx_import(null,null,null,null,null,'x',repeat('c',64),'[]');
     raise exception 'viewer imported';
   exception when insufficient_privilege then null; end;
 end; $$;

@@ -1,3 +1,4 @@
+import { TelemetryTimeBasisField } from "@/components/telemetry-time-basis-field";
 import Link from "next/link";
 import { NominalPowerFields } from "@/components/nominal-power-fields";
 
@@ -124,6 +125,7 @@ export default function NewCompleteClientStructurePage() {
                 />
                 <FieldError name="location_time_zone" />
               </label>
+              <TelemetryTimeBasisField />
               <label className="registration-field-wide">
                 Identificação ou localização
                 <textarea name="location_description" rows={2} />

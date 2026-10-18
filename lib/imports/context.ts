@@ -31,7 +31,7 @@ export async function validateImportContext(
         .maybeSingle(),
       supabase
         .from("locations")
-        .select("id, time_zone")
+        .select("id, time_zone, telemetry_time_basis, telemetry_revision, time_zone_revision")
         .eq("id", context.locationId)
         .eq("client_id", context.clientId)
         .eq("is_active", true)
@@ -108,6 +108,9 @@ export async function validateImportContext(
 
   return {
     ...context,
+    telemetryTimeBasis: location.data.telemetry_time_basis as "utc" | "location" | null,
+    telemetryRevision: location.data.telemetry_revision,
+    timeZoneRevision: location.data.time_zone_revision,
     timeZone: location.data.time_zone,
     controllerActivatedAt: controller.data.activated_at,
     controllerDeactivatedAt: controller.data.deactivated_at,

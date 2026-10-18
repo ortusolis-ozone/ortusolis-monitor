@@ -12,7 +12,7 @@ import { validateImportContext } from "./context";
 import { ImportValidationError, parseImportWorkbook } from "./parser";
 import { isOperationalSummary, NOMINAL_PROFILE_REQUIRED_MESSAGE } from "./operational-summary";
 import { compareImportPeriods } from "./session";
-import { isPowerTimezone } from "./timezone";
+import { resolvePowerTimezone, sameTemporalSnapshot, type TemporalSnapshot } from "./timezone";
 import type {
   ImportActionResult,
   ImportOperationalSummary,
@@ -54,7 +54,7 @@ function isValidRequest(request: ImportUploadRequest, profileId: string) {
   );
 }
 
-function persistedEvent(event: ParsedImportEvent): Json {
+function persistedEvent(event: ParsedImportEvent): Record<string, Json> {
   return {
     occurred_at: event.occurred_at,
     occurred_at_raw: event.occurred_at_raw,
@@ -67,7 +67,7 @@ function persistedEvent(event: ParsedImportEvent): Json {
   };
 }
 
-function persistedPowerReading(reading: ParsedPowerReading): Json {
+function persistedPowerReading(reading: ParsedPowerReading): Record<string, Json> {
   return {
     source_timezone: reading.source_timezone,
     normalization_version: reading.normalization_version,
@@ -186,8 +186,19 @@ async function loadValidatedUpload(
 
   try {
     const context = await validateImportContext(supabase, request.context);
-    if (context.controllerRole === "power_telemetry" && !isPowerTimezone(request.sourceTimezone)) {
-      throw new ImportValidationError("Selecione o fuso horário do arquivo de potência: UTC ou America/Fortaleza.");
+    let temporalSnapshot: TemporalSnapshot;
+    try {
+      const resolution = context.controllerRole === "power_telemetry"
+        ? resolvePowerTimezone(context.telemetryTimeBasis ?? null, context.timeZone, request.timezoneChoice)
+        : { sourceTimezone: context.timeZone, origin: "state" as const };
+      temporalSnapshot = {
+        locationId: context.locationId, locationTimeZone: context.timeZone,
+        timeZoneRevision: context.timeZoneRevision ?? 0,
+        telemetryRevision: context.telemetryRevision ?? 0,
+        telemetryTimeBasis: context.telemetryTimeBasis ?? null, ...resolution,
+      };
+    } catch (error) {
+      throw new ImportValidationError(error instanceof Error ? error.message : "Configuração temporal inválida.");
     }
     const [downloadResponse, mappingsResponse] = await Promise.all([
       supabase.storage.from(IMPORT_BUCKET).download(request.objectPath),
@@ -221,10 +232,10 @@ async function loadValidatedUpload(
       context,
       mappingsResponse.data,
       request.expectedDataKind,
-      request.sourceTimezone,
+      temporalSnapshot.sourceTimezone,
     );
 
-    return { supabase, context, parsed };
+    return { supabase, context, parsed, temporalSnapshot };
   } finally {
     await supabase.storage.from(IMPORT_BUCKET).remove([request.objectPath]);
   }
@@ -236,7 +247,7 @@ export async function previewXlsxImport(
   const profile = await requireMaster();
 
   try {
-    const { supabase, context, parsed } = await loadValidatedUpload(
+    const { supabase, context, parsed, temporalSnapshot } = await loadValidatedUpload(
       request,
       profile.id,
     );
@@ -290,6 +301,7 @@ export async function previewXlsxImport(
     );
 
     const previewBase = {
+      temporalSnapshot,
       fileName: request.fileName,
       fileSha256: parsed.fileSha256,
       sheetName: parsed.sheetName,
@@ -377,7 +389,10 @@ export async function confirmXlsxImport(
       return errorResult("A prévia expirou. Valide o arquivo novamente.");
     }
 
-    const { supabase, parsed } = await loadValidatedUpload(request, profile.id);
+    const { supabase, parsed, temporalSnapshot } = await loadValidatedUpload(request, profile.id);
+    if (!sameTemporalSnapshot(request.expectedTemporalSnapshot, temporalSnapshot)) {
+      return errorResult("A configuração temporal mudou ou a prévia expirou. Valide o arquivo novamente.");
+    }
     if (parsed.dataKind === "power_readings" && parsed.sourceTimezone !== request.expectedSourceTimezone) {
       return errorResult("O fuso mudou desde a prévia. Valide o arquivo novamente.");
     }
@@ -401,15 +416,16 @@ export async function confirmXlsxImport(
       parsed.dataKind === "state_events"
         ? await supabase.rpc("confirm_xlsx_import", {
             ...rpcContext,
-            p_events: parsed.events.map(persistedEvent),
+            p_events: parsed.events.map(row => ({ ...persistedEvent(row), temporal_context: temporalSnapshot })),
           })
         : await supabase.rpc("confirm_power_xlsx_import", {
             ...rpcContext,
-            p_readings: parsed.readings.map(persistedPowerReading),
+            p_readings: parsed.readings.map(row => ({ ...persistedPowerReading(row), temporal_context: temporalSnapshot })),
           });
 
     if (error || !data || !isConfirmation(data)) {
-      if (error?.code === "P1301") return errorResult("Este arquivo já teve o horário corrigido. Selecione o fuso usado na correção.");
+      if (error?.code === "P1501") return errorResult("A configuração temporal mudou. Atualize a tela e valide os arquivos novamente.");
+      if (error?.code === "P1301") return errorResult(`Este arquivo já teve o horário corrigido. Use Alterar para este arquivo ou revise o cadastro. ${error.hint ?? "Consulte o fuso no histórico da correção."}`);
       logOperationalFailure("import_confirmation", error);
       const administrativeMessage = "Não foi possível confirmar a importação.";
       const failedResult = await supabase.rpc(
@@ -484,6 +500,10 @@ async function processImportSession(
 
     const stateLoaded = stateSettled.value;
     const powerLoaded = powerSettled.value;
+    if (!sameTemporalSnapshot(request.state.expectedTemporalSnapshot, stateLoaded.temporalSnapshot) ||
+        !sameTemporalSnapshot(request.power.expectedTemporalSnapshot, powerLoaded.temporalSnapshot)) {
+      return errorResult("A configuração temporal mudou ou a prévia expirou. Valide os arquivos novamente.");
+    }
     const stateParsed = stateLoaded.parsed;
     const powerParsed = powerLoaded.parsed;
     if (powerParsed.dataKind === "power_readings" && powerParsed.sourceTimezone !== request.power.expectedSourceTimezone) {
@@ -536,11 +556,11 @@ async function processImportSession(
       p_state_controller_id: request.state.context.controllerId,
       p_state_file_name: request.state.fileName,
       p_state_file_sha256: stateParsed.fileSha256,
-      p_state_events: stateParsed.events.map(persistedEvent),
+      p_state_events: stateParsed.events.map(row => ({ ...persistedEvent(row), temporal_context: stateLoaded.temporalSnapshot })),
       p_power_controller_id: request.power.context.controllerId,
       p_power_file_name: request.power.fileName,
       p_power_file_sha256: powerParsed.fileSha256,
-      p_power_readings: powerParsed.readings.map(persistedPowerReading),
+      p_power_readings: powerParsed.readings.map(row => ({ ...persistedPowerReading(row), temporal_context: powerLoaded.temporalSnapshot })),
     };
     const { data, error } = preview
       ? await stateLoaded.supabase.rpc("preview_import_session", rpcArguments)
@@ -550,7 +570,8 @@ async function processImportSession(
         });
 
     if (error) logOperationalFailure("session_processing", error);
-    if (error?.code === "P1301") return errorResult("Este arquivo já teve o horário corrigido. Selecione o fuso usado na correção.");
+    if (error?.code === "P1501") return errorResult("A configuração temporal mudou. Atualize a tela e valide os arquivos novamente.");
+    if (error?.code === "P1301") return errorResult(`Este arquivo já teve o horário corrigido. Use Alterar para este arquivo ou revise o cadastro. ${error.hint ?? "Consulte o fuso no histórico da correção."}`);
     if (error?.code === "P1206") {
       return errorResult(NOMINAL_PROFILE_REQUIRED_MESSAGE);
     }
