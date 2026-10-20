@@ -1,4 +1,5 @@
 import "server-only";
+import { getRetentionWindows } from "@/lib/retention/queries";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -180,6 +181,7 @@ export async function getPortalPageData(
     coldRoomsResponse,
     generatorsResponse,
     latestStatusResponse,
+    retentionWindows,
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -202,6 +204,7 @@ export async function getPortalPageData(
       .eq("client_id", profile.clientId)
       .order("identifier"),
     supabase.rpc("list_client_application_status").limit(1).maybeSingle(),
+    getRetentionWindows(supabase),
   ]);
   const client = assertData(
     clientResponse.data,
@@ -285,7 +288,28 @@ export async function getPortalPageData(
     .sort((left, right) => left.date.localeCompare(right.date));
   const allApplications = applications.flatMap((day) => day.applications);
 
+  const active = retentionWindows.some(window => window.client_start_date !== null);
+  const selectedLocations = new Set(rows.map(row => row.location_id));
+  const windows = retentionWindows.filter(window =>
+    (!filters.locationId || window.location_id === filters.locationId) &&
+    (!filters.coldRoomId || coldRooms.some(room => room.id === filters.coldRoomId && room.location_id === window.location_id)) &&
+    (!filters.generatorId || selectedLocations.size === 0 || selectedLocations.has(window.location_id))
+  );
+  const periods = windows.map(window => ({
+    locationName: locationNames.get(window.location_id) ?? "Unidade",
+    from: window.client_start_date && window.client_start_date > filters.startDate ? window.client_start_date : filters.startDate,
+    to: active && window.today < filters.endDate ? window.today : filters.endDate,
+  })).filter(period => period.from <= period.to);
+
   return {
+    retention: {
+      active,
+      firstMonth: active ? windows.map(window => window.client_start_date!).sort()[0]?.slice(0, 7) : undefined,
+      lastMonth: active ? windows.map(window => window.today).sort().at(-1)?.slice(0, 7) : undefined,
+      activatesAt: retentionWindows[0]?.activates_at ?? null,
+      periods,
+      outsideWindow: active && periods.length === 0,
+    },
     clientName: client.legal_name,
     updatedThrough,
     applications,

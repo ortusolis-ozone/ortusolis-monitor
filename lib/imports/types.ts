@@ -23,6 +23,7 @@ export type ImportUploadRequest = {
 };
 
 export type ImportConfirmationRequest = ImportUploadRequest & {
+  expectedRetainedRows?: number;
   expectedFileSha256: string;
   expectedSourceTimezone?: string;
   expectedTemporalSnapshot?: TemporalSnapshot;
@@ -99,6 +100,7 @@ export type PowerImportPreviewRow = {
 };
 
 type ImportPreviewBase = {
+  expiredRows?: number;
   temporalSnapshot: TemporalSnapshot;
   fileName: string;
   fileSha256: string;

@@ -1,5 +1,7 @@
 # Spec 09 — Qualidade e entrega
 
+> **Evolução pendente:** a [spec 16](./16-retencao-do-historico-e-exportacao-pdf.md) define a entrega de exportação em PDF, retenção operacional, transição e validações de limpeza e restauração. A exportação deixa de ser opcional para a entrega dessa evolução, sem alterar o escopo do MVP original.
+
 **Status do MVP original:** pendente de conclusão.
 
 **Evolução Spec 10:** pendente de implementação.

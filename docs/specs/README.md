@@ -8,7 +8,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 - Supabase concentra autenticação, PostgreSQL e RLS.
 - A Data API usa permissões explícitas; RLS não substitui `GRANT`.
 - O banco é a fonte de verdade.
-- Eventos importados são preservados; aplicações e estados são dados derivados e reconstruíveis.
+- Eventos importados são preservados dentro da política de retenção; aplicações e estados são dados derivados e reconstruíveis a partir dos dados retidos. A janela de 90 dias passa a valer após a implementação e a transição da spec 16.
 - O cliente acessa somente dados sanitizados.
 - Não haverá microserviços, filas, cache distribuído ou API pública no MVP.
 - Perfis de cliente compartilham a mesma experiência no MVP, embora o papel seja armazenado.
@@ -33,6 +33,7 @@ Este diretório organiza as especificações na mesma ordem recomendada para imp
 | 13 | [Normalização do fuso horário da telemetria](./13-normalizacao-de-fuso-horario-da-telemetria.md) | Fuso explícito, correlação normalizada e correção auditável de leituras | Não se aplica | Concluída; migration em produção; deploy pendente |
 | 14 | [Mapeamento de origens e comandos manuais](./14-mapeamento-de-origens-e-comandos-manuais.md) | Origens explicadas, comandos manuais identificados e histórico reclassificado | Não se aplica | Implementada; validada localmente; publicação pendente |
 | 15 | [Fuso da telemetria por local](./15-fuso-da-telemetria-por-local.md) | Preferência temporal por local, herança na importação e exceção por arquivo com correção UTC preservada | Não se aplica | Implementada; validada localmente; publicação pendente |
+| 16 | [Retenção do histórico e exportação em PDF](./16-retencao-do-historico-e-exportacao-pdf.md) | Consulta e PDF por 35 dias, retenção operacional de 90 dias e limpeza diária | Não se aplica | Implementada; validada localmente; publicação e transição pendentes |
 
 ## Marcos
 
@@ -54,3 +55,5 @@ A spec 11 evolui apenas a experiência de importação definida nas specs 05 e 1
 A spec 12 adiciona potência nominal versionada ao gerador e avalia a leitura de início correlacionada pela spec 10. Ela mantém a aplicação como estado principal, calcula automaticamente o mínimo de 85% e expõe ao cliente somente um alerta qualitativo quando houver redução abaixo do esperado.
 
 A spec 15 evolui a escolha temporal da spec 13: permite cadastrar a referência dos arquivos de telemetria por local e herdá-la na importação, com exceção por arquivo. Preserva a normalização UTC, a idempotência e a correção auditável por reimportação.
+
+A spec 16 substitui a preservação indefinida do histórico operacional por retenção de 90 dias, com consulta e exportação em PDF pelo cliente durante 35 dias. A política entra em vigor após a implementação e 35 dias de aviso, preservando cadastros, vigências necessárias e auditoria administrativa sem conteúdo operacional vencido.

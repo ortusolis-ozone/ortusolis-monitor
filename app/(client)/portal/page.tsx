@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { parseFilters } from "@/lib/portal/filters";
 
 import { AppHeader } from "@/components/app-header";
 import { PublicStatusBadge } from "@/components/public-status-badge";
@@ -8,7 +9,7 @@ import type {
   PortalApplicationItem,
   PortalCalendarDay,
   PortalFilterOptions,
-  PortalFilters,
+  PortalPageData,
   ResolvedPortalFilters,
 } from "@/lib/portal/types";
 
@@ -24,46 +25,6 @@ type PortalPageProps = {
     generator?: string | string[];
   }>;
 };
-
-const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-function firstValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function isValidIsoDate(value: string | undefined): value is string {
-  if (!value || !datePattern.test(value)) return false;
-
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return date.toISOString().slice(0, 10) === value;
-}
-
-function parseFilters(
-  values: Awaited<PortalPageProps["searchParams"]>,
-): PortalFilters {
-  const month = firstValue(values.month);
-  const from = firstValue(values.from);
-  const to = firstValue(values.to);
-  const location = firstValue(values.location);
-  const room = firstValue(values.room);
-  const generator = firstValue(values.generator);
-
-  return {
-    ...(month && monthPattern.test(month) ? { month } : {}),
-    ...(isValidIsoDate(from) ? { startDate: from } : {}),
-    ...(isValidIsoDate(to) ? { endDate: to } : {}),
-    ...(location && uuidPattern.test(location) ? { locationId: location } : {}),
-    ...(room && uuidPattern.test(room) ? { coldRoomId: room } : {}),
-    ...(generator && uuidPattern.test(generator)
-      ? { generatorId: generator }
-      : {}),
-  };
-}
 
 function formatPortalDate(value: string) {
   const [year, month, day] = value.split("-");
@@ -203,15 +164,23 @@ function ApplicationDayList({
 function CalendarFilters({
   filters,
   options,
+  retention,
 }: {
   filters: ResolvedPortalFilters;
   options: PortalFilterOptions;
+  retention: PortalPageData["retention"];
 }) {
   return (
     <form className="portal-filters portal-calendar-filters" method="get">
       <label>
         Mês
-        <input defaultValue={filters.month} name="month" type="month" />
+        <input
+          defaultValue={filters.month}
+          max={retention?.lastMonth}
+          min={retention?.firstMonth}
+          name="month"
+          type="month"
+        />
       </label>
       <label>
         Unidade
@@ -346,6 +315,21 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
           </div>
         </section>
 
+        <section aria-label="Disponibilidade do histórico" className="portal-update-card">
+          <p>O histórico fica disponível por 35 dias. Baixe o PDF para guardar seus registros.</p>
+          {!data.retention?.active && (
+            <p>{data.retention?.activatesAt
+              ? `Até ${new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Fortaleza" }).format(new Date(data.retention.activatesAt))}, o histórico anterior continua disponível para consulta e download.`
+              : "O histórico anterior permanece disponível. A data de início da política será informada com 35 dias de antecedência."}</p>
+          )}
+          {data.retention?.active && data.retention.periods.map(period => (
+            <p key={period.locationName}>{period.locationName}: {formatPortalDate(period.from)} a {formatPortalDate(period.to)}. Datas fora desse intervalo estão fora do período disponível.</p>
+          ))}
+          {data.applicationCount > 0 ? (
+            <a className="primary-button" href={portalHref(data.filters).replace("/portal?", "/portal/relatorio?")}>Baixar PDF</a>
+          ) : <p>Sem registros disponíveis para exportar.</p>}
+        </section>
+
         <section aria-labelledby="calendar-title" className="portal-calendar">
           <header className="portal-calendar-header">
             <div>
@@ -357,12 +341,16 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
               </p>
             </div>
             <nav aria-label="Navegação de meses" className="portal-month-navigation">
-              <Link href={portalHref(data.filters, { month: previousMonth })}>
-                Mês anterior
-              </Link>
-              <Link href={portalHref(data.filters, { month: nextMonth })}>
-                Próximo mês
-              </Link>
+              {(!data.retention?.firstMonth || previousMonth >= data.retention.firstMonth) && (
+                <Link href={portalHref(data.filters, { month: previousMonth })}>
+                  Mês anterior
+                </Link>
+              )}
+              {(!data.retention?.lastMonth || nextMonth <= data.retention.lastMonth) && (
+                <Link href={portalHref(data.filters, { month: nextMonth })}>
+                  Próximo mês
+                </Link>
+              )}
             </nav>
           </header>
 
@@ -371,9 +359,11 @@ export default async function PortalPage({ searchParams }: PortalPageProps) {
             attentionCount={data.attentionCount}
             generatorCount={data.generatorCount}
           />
-          <CalendarFilters filters={data.filters} options={data.options} />
+          <CalendarFilters filters={data.filters} options={data.options} retention={data.retention} />
 
-          {data.applications.length > 0 ? (
+          {data.retention?.outsideWindow ? (
+            <div className="portal-empty-state"><strong>Fora do período disponível</strong><p>Selecione um mês que inclua os últimos 35 dias.</p></div>
+          ) : data.applications.length > 0 ? (
             <ApplicationDayList applications={data.applications} />
           ) : (
             <CalendarEmptyState

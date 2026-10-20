@@ -1,7 +1,9 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import type { ImportSessionConfirmationRequest } from "./types";
 
-const mocks = vi.hoisted(() => ({ requireMaster: vi.fn(), createClient: vi.fn(), rpc: vi.fn(), parse: vi.fn(), context: vi.fn(), remove: vi.fn(), revalidate: vi.fn() }));
+vi.mock("@/lib/retention/queries", () => ({ getRetentionWindows: () => mocks.retention() }));
+
+const mocks = vi.hoisted(() => ({ requireMaster: vi.fn(), createClient: vi.fn(), rpc: vi.fn(), parse: vi.fn(), context: vi.fn(), remove: vi.fn(), revalidate: vi.fn(), retention: vi.fn() }));
 vi.mock("@/lib/auth/profile", () => ({ requireMaster: mocks.requireMaster }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
@@ -21,6 +23,7 @@ const request: ImportSessionConfirmationRequest = {
 const summary = { within_expected: 1, below_expected: 1, not_evaluable: 1, not_configured: 0, groups: [], profiles: [] };
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.retention.mockResolvedValue([{ location_id: id, operational_start_date: null }]);
   mocks.requireMaster.mockResolvedValue({ id });
   mocks.context.mockImplementation(async (_db, ctx) => ({ ...ctx, timeZone: "America/Fortaleza", telemetryTimeBasis: "utc", telemetryRevision: 0, timeZoneRevision: 0, controllerRole: mocks.context.mock.calls.length % 2 ? "state" : "power_telemetry" }));
   mocks.createClient.mockResolvedValue({
@@ -30,12 +33,36 @@ beforeEach(() => {
   });
   mocks.parse.mockImplementation(async (_buffer, _context, _mappings, kind, sourceTimezone) => ({
     sourceTimezone,
-    dataKind: kind, fileSha256: (kind === "state_events" ? "a" : "b").repeat(64),
+    dataKind: kind, totalRows: 1, fileSha256: (kind === "state_events" ? "a" : "b").repeat(64),
     periodStart: "2026-08-01T00:00:00Z", periodEnd: "2026-08-02T00:00:00Z",
     events: [{ occurred_at: "2026-08-01T00:00:00Z", operation: "turn_on" }],
     readings: [{ occurred_at: "2026-08-01T00:00:00Z", power_w: 61.2 }],
   }));
   mocks.rpc.mockResolvedValue({ data: summary, error: null });
+});
+test.each([previewImportSession, confirmImportSession])("requires revalidation when eligible rows change", async action => {
+  mocks.retention.mockResolvedValue([{ location_id: id, today: "2026-08-02", operational_start_date: "2026-07-01" }]);
+  const changed = {
+    ...request,
+    state: { ...request.state, expectedRetainedRows: 2 },
+    power: { ...request.power, expectedRetainedRows: 1 },
+  };
+  expect(await action(changed)).toMatchObject({ status: "error", message: expect.stringContaining("Valide os arquivos novamente") });
+  expect(mocks.rpc).not.toHaveBeenCalled();
+  expect(mocks.remove).toHaveBeenCalledTimes(2);
+});
+test("carries the eligible count to the database for the final retention check", async () => {
+  mocks.retention.mockResolvedValue([{ location_id: id, today: "2026-08-02", operational_start_date: "2026-07-01" }]);
+  const current = {
+    ...request,
+    state: { ...request.state, expectedRetainedRows: 1 },
+    power: { ...request.power, expectedRetainedRows: 1 },
+  };
+  expect((await previewImportSession(current)).status).toBe("preview");
+  expect(mocks.rpc).toHaveBeenCalledWith("preview_import_session", expect.objectContaining({
+    p_state_events: [expect.objectContaining({ retention_expected_count: 1 })],
+    p_power_readings: [expect.objectContaining({ retention_expected_count: 1 })],
+  }));
 });
 test("preview reparses both uploads and calls only the canonical preview RPC", async () => {
   expect(await previewImportSession(request)).toEqual({ status: "preview", preview: summary });

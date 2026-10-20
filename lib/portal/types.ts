@@ -49,6 +49,14 @@ export type PortalCalendarDay = {
 };
 
 export type PortalPageData = {
+  retention?: {
+    activatesAt: string | null;
+    active: boolean;
+    firstMonth?: string;
+    lastMonth?: string;
+    periods: Array<{ locationName: string; from: string; to: string }>;
+    outsideWindow: boolean;
+  };
   clientName: string;
   updatedThrough: string | null;
   applications: PortalCalendarDay[];

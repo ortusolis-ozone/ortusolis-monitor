@@ -1,5 +1,7 @@
 # Spec 08 — Portal do cliente
 
+> **Evolução pendente:** a [spec 16](./16-retencao-do-historico-e-exportacao-pdf.md) define consulta e exportação em PDF dos últimos 35 dias após a transição. O relatório acompanha o contrato atual do portal, que já inclui horários das aplicações e potência máxima; as restrições originais abaixo não descrevem essa evolução. Eventos brutos e informações administrativas continuam restritos.
+
 **Status do MVP original:** concluída.
 
 **Evolução Spec 10:** pendente de implementação.

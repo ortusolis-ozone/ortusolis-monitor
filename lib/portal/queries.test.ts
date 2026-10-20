@@ -1,10 +1,13 @@
 import { beforeEach, expect, test, vi } from "vitest";
 
+vi.mock("@/lib/retention/queries", () => ({ getRetentionWindows: () => mocks.retention() }));
+
 const mocks = vi.hoisted(() => ({
   profile: vi.fn(),
   client: vi.fn(),
   rpc: vi.fn(),
   from: vi.fn(),
+  retention: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/profile", () => ({ requireClientProfile: mocks.profile }));
@@ -38,6 +41,7 @@ function response(data: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.retention.mockResolvedValue([]);
   mocks.profile.mockResolvedValue({ clientId: "client" });
   mocks.client.mockResolvedValue({ from: mocks.from, rpc: mocks.rpc });
   mocks.from.mockImplementation((table: string) => {
@@ -112,14 +116,15 @@ test("passes the selected month filters and paginates using the RPC offset", asy
       : response(
           args.p_offset === 0
             ? Array.from({ length: 1000 }, () => row)
-            : [],
+            : [{ ...row, application_started_at: "12:00:00" }],
         ),
   );
 
-  await getPortalPageData({
+  const data = await getPortalPageData({
     month: "2026-09",
     generatorId: "generator",
   });
+  expect(data.applicationCount).toBe(1001);
 
   expect(mocks.rpc).toHaveBeenCalledWith(
     "list_client_application_details",
@@ -130,6 +135,22 @@ test("passes the selected month filters and paginates using the RPC offset", asy
       p_offset: 1000,
     }),
   );
+});
+
+test.each([
+  ["2026-09", false, [{ locationName: "Unidade", from: "2026-09-16", to: "2026-09-30" }]],
+  ["2026-08", true, []],
+] as const)("distinguishes available and expired dates in %s", async (month, outsideWindow, periods) => {
+  mocks.retention.mockResolvedValue([{
+    location_id: "location", today: "2026-10-20", client_start_date: "2026-09-16",
+    operational_start_date: "2026-07-23", activates_at: "2026-10-20T00:00:00Z",
+  }]);
+  mocks.rpc.mockImplementation((_name, args) => args === undefined ? response(null) : response([]));
+  const data = await getPortalPageData({ month });
+  expect(data.retention).toMatchObject({
+    active: true, firstMonth: "2026-09", lastMonth: "2026-10", outsideWindow, periods,
+  });
+  expect(data.applicationCount).toBe(0);
 });
 
 test("keeps multiple applications from the same generator on the same day", async () => {

@@ -1,5 +1,7 @@
 # Spec 05 — Importação XLSX
 
+> **Evolução pendente:** após a ativação da [spec 16](./16-retencao-do-historico-e-exportacao-pdf.md), a importação deve ignorar registros fora da janela de 90 dias, informar a quantidade na prévia e revalidar o prazo na confirmação, inclusive nos caminhos legados.
+
 **Status do MVP original:** concluída.
 
 **Evolução Spec 10:** pendente de implementação.

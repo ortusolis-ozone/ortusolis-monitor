@@ -1,5 +1,7 @@
 # Spec 10 — Duplo controlador e telemetria de potência
 
+> **Evolução pendente:** a [spec 16](./16-retencao-do-historico-e-exportacao-pdf.md) substitui a preservação indefinida dos dados operacionais por retenção de 90 dias após sua ativação. A preservação de eventos, leituras e resultados descrita abaixo passa a respeitar essa janela; substituições de controlador continuam sem provocar exclusão de dados.
+
 **Status:** concluída em 31/08/2026.
 
 **Aprovação do produto:** 31/08/2026.

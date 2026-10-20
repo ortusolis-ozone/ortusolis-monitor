@@ -14,6 +14,7 @@ export const correlationLabels: Record<string, string> = {
   not_processed: "Correlação ainda não processada",
 };
 export const diagnosticReasons: Record<string, string> = {
+  evidence_expired_by_retention: "A evidência necessária venceu conforme a política de retenção. Resultado inconclusivo.",
   nominal_power_profile_not_configured: "Não existe perfil nominal vigente no início da aplicação.",
   power_on_reading_not_valid: "A leitura correlacionada ao início não atende às validações técnicas.",
   power_on_reading_not_available: "Não há leitura de início disponível para avaliação.",

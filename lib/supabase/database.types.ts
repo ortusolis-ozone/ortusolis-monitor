@@ -133,6 +133,7 @@ export type Database = {
           end_event_id: number
           generator_id: string
           id: number
+          retention_evidence_removed: boolean
           public_date: string
           start_event_id: number
         }
@@ -142,6 +143,7 @@ export type Database = {
           end_event_id: number
           generator_id: string
           id?: never
+          retention_evidence_removed?: boolean
           public_date: string
           start_event_id: number
         }
@@ -151,6 +153,7 @@ export type Database = {
           end_event_id?: number
           generator_id?: string
           id?: never
+          retention_evidence_removed?: boolean
           public_date?: string
           start_event_id?: number
         }
@@ -1279,6 +1282,16 @@ export type Database = {
       }
     }
     Functions: {
+      get_history_retention_windows: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          location_id: string
+          today: string
+          client_start_date: string | null
+          operational_start_date: string | null
+          activates_at: string | null
+        }[]
+      }
       confirm_import_session: {
         Args: {
           p_client_id: string

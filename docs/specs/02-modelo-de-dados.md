@@ -1,5 +1,7 @@
 # Spec 02 — Modelo de dados
 
+> **Evolução pendente:** a [spec 16](./16-retencao-do-historico-e-exportacao-pdf.md) limita a preservação do histórico operacional a 90 dias após sua ativação. A exclusão autorizada por retenção é uma exceção à preservação dos eventos brutos; cadastros e vigências necessárias permanecem preservados.
+
 **Status do MVP original:** concluída.
 
 **Evolução Spec 10:** pendente de implementação.

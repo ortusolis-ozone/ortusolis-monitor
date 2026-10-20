@@ -1,5 +1,7 @@
 # Spec 06 — Processamento e estados
 
+> **Evolução pendente:** a [spec 16](./16-retencao-do-historico-e-exportacao-pdf.md) restringe o reprocessamento aos dados retidos após a ativação da política. A reconstrução não pode recriar histórico vencido; perda de evidência por retenção não deve gerar conclusão de falha do equipamento.
+
 **Status do MVP original:** concluída.
 
 **Evolução Spec 10:** pendente de implementação.

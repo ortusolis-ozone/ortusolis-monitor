@@ -202,7 +202,7 @@ function StatePreview({ preview }: { preview: ImportPreview }) {
       <dl className="source-preview-summary">
         <div>
           <dt>Linhas válidas</dt>
-          <dd>{preview.totalRows.toLocaleString("pt-BR")}</dd>
+          <dd>{preview.totalRows.toLocaleString("pt-BR")} elegíveis; {preview.expiredRows ?? 0} fora da retenção</dd>
         </div>
         <div>
           <dt>Já existentes</dt>
@@ -260,7 +260,7 @@ function PowerPreview({ preview }: { preview: ImportPreview }) {
       <dl className="source-preview-summary">
         <div>
           <dt>Linhas válidas</dt>
-          <dd>{preview.totalRows.toLocaleString("pt-BR")}</dd>
+          <dd>{preview.totalRows.toLocaleString("pt-BR")} elegíveis; {preview.expiredRows ?? 0} fora da retenção</dd>
         </div>
         <div>
           <dt>Já existentes</dt>
@@ -694,6 +694,7 @@ export function ImportWorkflow({
           fileName: stateSlot.file.name,
           context: importContext(stateSlot.controllerId),
           expectedFileSha256: statePreview.fileSha256,
+          expectedRetainedRows: statePreview.totalRows,
           expectedTemporalSnapshot: statePreview.temporalSnapshot,
           expectedDataKind: "state_events",
         },
@@ -702,6 +703,7 @@ export function ImportWorkflow({
           fileName: powerSlot.file.name,
           context: importContext(powerSlot.controllerId),
           expectedFileSha256: powerPreview.fileSha256,
+          expectedRetainedRows: powerPreview.totalRows,
           expectedDataKind: "power_readings",
           timezoneChoice,
           expectedTemporalSnapshot: powerPreview.temporalSnapshot,

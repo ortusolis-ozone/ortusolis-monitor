@@ -1,5 +1,8 @@
 "use server";
 
+import { getRetentionWindows } from "@/lib/retention/queries";
+import { retainImportRows } from "./retention";
+
 import { revalidatePath } from "next/cache";
 
 import { logOperationalFailure } from "@/lib/operations/log-failure";
@@ -227,7 +230,7 @@ async function loadValidatedUpload(
     }
 
     const buffer = Buffer.from(await downloadResponse.data.arrayBuffer());
-    const parsed = await parseImportWorkbook(
+    const originalParsed = await parseImportWorkbook(
       buffer,
       context,
       mappingsResponse.data,
@@ -235,7 +238,15 @@ async function loadValidatedUpload(
       temporalSnapshot.sourceTimezone,
     );
 
-    return { supabase, context, parsed, temporalSnapshot };
+    const windows = await getRetentionWindows(supabase);
+    const window = windows.find(item => item.location_id === context.locationId);
+    if (!window) throw new ImportValidationError("Não foi possível verificar a retenção da unidade.");
+    const { parsed, expiredRows } = retainImportRows(originalParsed, window, context.timeZone);
+    if (window.operational_start_date && "expectedFileSha256" in request &&
+        (request as ImportConfirmationRequest).expectedRetainedRows !== parsed.totalRows) {
+      throw new ImportValidationError("O período disponível mudou. Valide os arquivos novamente.");
+    }
+    return { supabase, context, parsed, temporalSnapshot, expiredRows };
   } finally {
     await supabase.storage.from(IMPORT_BUCKET).remove([request.objectPath]);
   }
@@ -247,7 +258,7 @@ export async function previewXlsxImport(
   const profile = await requireMaster();
 
   try {
-    const { supabase, context, parsed, temporalSnapshot } = await loadValidatedUpload(
+    const { supabase, context, parsed, temporalSnapshot, expiredRows } = await loadValidatedUpload(
       request,
       profile.id,
     );
@@ -301,6 +312,7 @@ export async function previewXlsxImport(
     );
 
     const previewBase = {
+      expiredRows,
       temporalSnapshot,
       fileName: request.fileName,
       fileSha256: parsed.fileSha256,
@@ -416,14 +428,15 @@ export async function confirmXlsxImport(
       parsed.dataKind === "state_events"
         ? await supabase.rpc("confirm_xlsx_import", {
             ...rpcContext,
-            p_events: parsed.events.map(row => ({ ...persistedEvent(row), temporal_context: temporalSnapshot })),
+            p_events: parsed.events.map(row => ({ ...persistedEvent(row), temporal_context: temporalSnapshot, retention_expected_count: parsed.totalRows })),
           })
         : await supabase.rpc("confirm_power_xlsx_import", {
             ...rpcContext,
-            p_readings: parsed.readings.map(row => ({ ...persistedPowerReading(row), temporal_context: temporalSnapshot })),
+            p_readings: parsed.readings.map(row => ({ ...persistedPowerReading(row), temporal_context: temporalSnapshot, retention_expected_count: parsed.totalRows })),
           });
 
     if (error || !data || !isConfirmation(data)) {
+      if (error?.code === "P1601" || error?.code === "P1602") return errorResult("O período disponível mudou ou os registros venceram. Valide os arquivos novamente.");
       if (error?.code === "P1501") return errorResult("A configuração temporal mudou. Atualize a tela e valide os arquivos novamente.");
       if (error?.code === "P1301") return errorResult(`Este arquivo já teve o horário corrigido. Use Alterar para este arquivo ou revise o cadastro. ${error.hint ?? "Consulte o fuso no histórico da correção."}`);
       logOperationalFailure("import_confirmation", error);
@@ -556,11 +569,11 @@ async function processImportSession(
       p_state_controller_id: request.state.context.controllerId,
       p_state_file_name: request.state.fileName,
       p_state_file_sha256: stateParsed.fileSha256,
-      p_state_events: stateParsed.events.map(row => ({ ...persistedEvent(row), temporal_context: stateLoaded.temporalSnapshot })),
+      p_state_events: stateParsed.events.map(row => ({ ...persistedEvent(row), temporal_context: stateLoaded.temporalSnapshot, retention_expected_count: stateParsed.totalRows })),
       p_power_controller_id: request.power.context.controllerId,
       p_power_file_name: request.power.fileName,
       p_power_file_sha256: powerParsed.fileSha256,
-      p_power_readings: powerParsed.readings.map(row => ({ ...persistedPowerReading(row), temporal_context: powerLoaded.temporalSnapshot })),
+      p_power_readings: powerParsed.readings.map(row => ({ ...persistedPowerReading(row), temporal_context: powerLoaded.temporalSnapshot, retention_expected_count: powerParsed.totalRows })),
     };
     const { data, error } = preview
       ? await stateLoaded.supabase.rpc("preview_import_session", rpcArguments)
@@ -570,6 +583,7 @@ async function processImportSession(
         });
 
     if (error) logOperationalFailure("session_processing", error);
+    if (error?.code === "P1601" || error?.code === "P1602") return errorResult("O período disponível mudou ou os registros venceram. Valide os arquivos novamente.");
     if (error?.code === "P1501") return errorResult("A configuração temporal mudou. Atualize a tela e valide os arquivos novamente.");
     if (error?.code === "P1301") return errorResult(`Este arquivo já teve o horário corrigido. Use Alterar para este arquivo ou revise o cadastro. ${error.hint ?? "Consulte o fuso no histórico da correção."}`);
     if (error?.code === "P1206") {
